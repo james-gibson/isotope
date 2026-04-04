@@ -467,8 +467,8 @@ func (as *AgentState) CheckRungBoundary() RungBoundaryAlert {
 	}
 }
 
-// IsotopeResult enriches a test result with 42i metadata.
-type IsotopeResult struct {
+// Result enriches a test result with 42i metadata.
+type Result struct {
 	TestIsotope    Isotope
 	Passed         bool
 	AgentID        string
@@ -481,7 +481,7 @@ type IsotopeResult struct {
 }
 
 // RecordIsotopeTestResult records a test result and returns 42i impact.
-func (as *AgentState) RecordIsotopeTestResult(testIsotope Isotope, passed bool) IsotopeResult {
+func (as *AgentState) RecordIsotopeTestResult(testIsotope Isotope, passed bool) Result {
 	before := as.Position
 
 	var rungChanged bool
@@ -498,7 +498,7 @@ func (as *AgentState) RecordIsotopeTestResult(testIsotope Isotope, passed bool) 
 	baseCost := 1 << uint(as.Position.Rung+4)
 	costAdjustment := float64(as.CalculateAdjustedCost()) / float64(baseCost)
 
-	return IsotopeResult{
+	return Result{
 		TestIsotope:    testIsotope,
 		Passed:         passed,
 		AgentID:        as.AgentID,

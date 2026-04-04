@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestIsotopeAgreementThreeAlarms(t *testing.T) {
+func TestAgreementThreeAlarms(t *testing.T) {
 	// All three alarms report same isotope
 	isotope := Isotope{
 		Family:    "iso-login",
@@ -35,7 +35,7 @@ func TestIsotopeAgreementThreeAlarms(t *testing.T) {
 		},
 	}
 
-	status := VerifyIsotopeAgreement(reports, 2) // Require 2/3 agreement
+	status := VerifyAgreement(reports, 2) // Require 2/3 agreement
 
 	if !status.ConsensusFormed {
 		t.Error("Expected consensus to form with 3/3 alarms agreeing")
@@ -72,7 +72,7 @@ func TestIsotopeDisagreementDetection(t *testing.T) {
 		{AlarmID: "alarm-c", Isotope: isotope2, Timestamp: time.Now()}, // Disagreer
 	}
 
-	status := VerifyIsotopeAgreement(reports, 2)
+	status := VerifyAgreement(reports, 2)
 
 	if !status.ConsensusFormed {
 		t.Error("Consensus should form with 2/3 agreement")
@@ -116,7 +116,7 @@ func TestByzantineToleranceFiveAlarms(t *testing.T) {
 		{AlarmID: "alarm-e", Isotope: isotope2, Timestamp: time.Now()}, // Compromised
 	}
 
-	status := VerifyIsotopeAgreement(reports, 3) // Require 3/5 quorum
+	status := VerifyAgreement(reports, 3) // Require 3/5 quorum
 
 	if !status.ConsensusFormed {
 		t.Error("Consensus should form with 4/5 alarms agreeing")
@@ -144,7 +144,7 @@ func TestConsensusRequiresQuorum(t *testing.T) {
 		{AlarmID: "alarm-b", Isotope: isotope, Timestamp: time.Now()},
 	}
 
-	status := VerifyIsotopeAgreement(reports, 3) // Require 3 alarms
+	status := VerifyAgreement(reports, 3) // Require 3 alarms
 
 	if status.ConsensusFormed {
 		t.Error("Consensus should not form with only 2 alarms (quorum=3)")

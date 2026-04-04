@@ -18,8 +18,8 @@ type ConsensusReport struct {
 	Timestamp time.Time // When the report was generated
 }
 
-// IsotopeAgreement verifies that all alarms report the same isotope.
-type IsotopeAgreement struct {
+// Agreement verifies that all alarms report the same isotope.
+type Agreement struct {
 	IsotopeFamily  string
 	IsotopeVersion int
 	RequiredQuorum int // Minimum alarms needed for consensus
@@ -36,9 +36,9 @@ type QuorumStatus struct {
 	ByzantineCount  int       // Number of failures tolerated (F = (N-1)/3)
 }
 
-// VerifyIsotopeAgreement checks if enough alarms agree on the same isotope.
+// VerifyAgreement checks if enough alarms agree on the same isotope.
 // Implements Byzantine Fault Tolerance: N >= 3F+1 alarms can tolerate F failures.
-func VerifyIsotopeAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus {
+func VerifyAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus {
 	if len(reports) == 0 {
 		return QuorumStatus{
 			ConsensusFormed: false,
@@ -131,16 +131,16 @@ func TimestampOrdering(reports []ConsensusReport) error {
 	return nil
 }
 
-// IsotopeChainLink holds one step in the isotope chain (primary → secondary → verification).
+// ChainLink holds one step in the isotope chain (primary → secondary → verification).
 // Used when Fire-Marshals delegate to each other.
-type IsotopeChainLink struct {
+type ChainLink struct {
 	Role      string // "requester", "secondary", "verifier"
 	Isotope   Isotope
 	Timestamp time.Time
 }
 
 // VerifyIsotopeChain checks that all links in the chain are accounted for and signed.
-func VerifyIsotopeChain(links []IsotopeChainLink) error {
+func VerifyIsotopeChain(links []ChainLink) error {
 	if len(links) < 2 {
 		return fmt.Errorf("isotope chain must have at least 2 links (requester + secondary)")
 	}
@@ -207,7 +207,7 @@ func TestAgreementPattern(reports []ConsensusReport) bool {
 		return false // Need at least 3 alarms for Byzantine tolerance
 	}
 
-	status := VerifyIsotopeAgreement(reports, 2) // Require 2/3 agreement
+	status := VerifyAgreement(reports, 2) // Require 2/3 agreement
 	return status.ConsensusFormed && len(status.Outliers) <= 1
 }
 
@@ -221,7 +221,7 @@ func TestDeclarativeBehaviorCompliance(isotope Isotope, observed bool) bool {
 // DetectCompromisedAlarm identifies an alarm that disagrees with consensus.
 // Returns the alarm ID if one is clearly an outlier.
 func DetectCompromisedAlarm(reports []ConsensusReport, requiredQuorum int) *AlarmID {
-	status := VerifyIsotopeAgreement(reports, requiredQuorum)
+	status := VerifyAgreement(reports, requiredQuorum)
 
 	if len(status.Outliers) == 1 {
 		// Single outlier is suspicious

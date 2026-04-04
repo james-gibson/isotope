@@ -1,3 +1,6 @@
+// Package isotope implements the isotope protocol: Gherkin canonicalization,
+// Byzantine consensus, 42i capability lattice, trust verification, and the
+// shared wire types and HTTP client for smoke-alarm isotope endpoints.
 package isotope
 
 import (
@@ -11,6 +14,7 @@ import (
 // GherkinKeyword normalizes Gherkin keywords across languages to canonical form.
 type GherkinKeyword string
 
+// Canonical Gherkin keyword forms. All language variants normalise to these.
 const (
 	KeywordGiven GherkinKeyword = "GIVEN"
 	KeywordWhen  GherkinKeyword = "WHEN"

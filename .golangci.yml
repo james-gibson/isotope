@@ -1,0 +1,95 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  issues-exit-code: 1
+
+linters:
+  default: none
+  enable:
+    # correctness
+    - bodyclose
+    - errcheck
+    - govet
+    - ineffassign
+    - nilerr
+    - staticcheck
+    - unused
+
+    # code quality
+    - asciicheck
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+
+  settings:
+    govet:
+      enable:
+        - shadow
+
+    errcheck:
+      check-type-assertions: true
+
+    revive:
+      confidence: 0.8
+      rules:
+        - name: var-naming
+        - name: package-comments
+        - name: exported
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: unexported-return
+
+    misspell:
+      locale: US
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam
+        - unnamedResult
+        - rangeValCopy
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - unparam
+
+      # G401/G505: HMAC-SHA256 is used for isotope signing — not weak crypto,
+      # but gosec flags any SHA usage without context.
+      - linters:
+          - gosec
+        text: "G(401|505):"
+
+      # G404: math/rand is used intentionally in devmode simulation only.
+      - path: devmode\.go
+        linters:
+          - gosec
+        text: "G404:"
+
+      # G115: int→uint bit-shift for capability cost calculation is safe;
+      # rung values are bounded 0-6 so overflow is impossible.
+      - path: fortytwointegration\.go
+        linters:
+          - gosec
+        text: "G115:"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

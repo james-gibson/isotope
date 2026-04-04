@@ -17,8 +17,8 @@ type TestResult struct {
 	ExecutionMs int    // How long the test took
 }
 
-// IsotopeHistory aggregates all results for a specific isotope.
-type IsotopeHistory struct {
+// History aggregates all results for a specific isotope.
+type History struct {
 	Isotope   Isotope
 	Family    string // Convenience copy
 	Version   int    // Convenience copy
@@ -35,13 +35,13 @@ type IsotopeHistory struct {
 // ResultLedger tracks test results keyed by isotope.
 type ResultLedger struct {
 	mu        sync.RWMutex
-	histories map[string]*IsotopeHistory // Key: isotope.Family + "-v" + version
+	histories map[string]*History // Key: isotope.Family + "-v" + version
 }
 
 // NewResultLedger creates a new result tracking ledger.
 func NewResultLedger() *ResultLedger {
 	return &ResultLedger{
-		histories: make(map[string]*IsotopeHistory),
+		histories: make(map[string]*History),
 	}
 }
 
@@ -54,7 +54,7 @@ func (rl *ResultLedger) RecordResult(result TestResult) {
 
 	history, ok := rl.histories[key]
 	if !ok {
-		history = &IsotopeHistory{
+		history = &History{
 			Isotope:   result.Isotope,
 			Family:    result.Isotope.Family,
 			Version:   result.Isotope.Version,
@@ -78,7 +78,7 @@ func (rl *ResultLedger) RecordResult(result TestResult) {
 }
 
 // QueryByIsotope retrieves all results for a specific isotope.
-func (rl *ResultLedger) QueryByIsotope(family string, version int) *IsotopeHistory {
+func (rl *ResultLedger) QueryByIsotope(family string, version int) *History {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
 
@@ -87,11 +87,11 @@ func (rl *ResultLedger) QueryByIsotope(family string, version int) *IsotopeHisto
 }
 
 // QueryByFamily retrieves all versions of a test family.
-func (rl *ResultLedger) QueryByFamily(family string) []*IsotopeHistory {
+func (rl *ResultLedger) QueryByFamily(family string) []*History {
 	rl.mu.RLock()
 	defer rl.mu.RUnlock()
 
-	var results []*IsotopeHistory
+	var results []*History
 	for _, history := range rl.histories {
 		if history.Family == family {
 			results = append(results, history)
@@ -226,7 +226,7 @@ func (rl *ResultLedger) AggregateAcrossVariants(family string, version int) (tot
 }
 
 // recalculateMetrics updates stability, flakiness, and trend metrics for a history.
-func (h *IsotopeHistory) recalculateMetrics() {
+func (h *History) recalculateMetrics() {
 	if len(h.Results) == 0 {
 		h.Stability = 0.0
 		h.Flakiness = 0.0
@@ -282,7 +282,7 @@ func (h *IsotopeHistory) recalculateMetrics() {
 }
 
 // GetSummary returns a human-readable summary of isotope history.
-func (h *IsotopeHistory) GetSummary() string {
+func (h *History) GetSummary() string {
 	return fmt.Sprintf(
 		"Isotope %s-v%d: %d pass, %d fail (%.1f%% stable) | Trend: %s | Flakiness: %.1f%%",
 		h.Family, h.Version,

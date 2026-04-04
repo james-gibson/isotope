@@ -315,8 +315,8 @@ func TestAggregateAcrossVariants(t *testing.T) {
 	}
 }
 
-func TestIsotopeHistorySummary(t *testing.T) {
-	history := &IsotopeHistory{
+func TestHistorySummary(t *testing.T) {
+	history := &History{
 		Isotope:   Isotope{Family: "iso-test", Version: 1},
 		Family:    "iso-test",
 		Version:   1,

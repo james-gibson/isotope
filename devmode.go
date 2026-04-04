@@ -64,7 +64,7 @@ func (dms *DevModeSimulator) SimulateTest(testIsotope Isotope, passed bool) (Con
 		quorumSize = 1
 	}
 
-	status := VerifyIsotopeAgreement(dms.Results, quorumSize)
+	status := VerifyAgreement(dms.Results, quorumSize)
 
 	return ConsensusResult{
 		TestIsotope:       testIsotope,

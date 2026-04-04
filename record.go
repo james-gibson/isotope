@@ -2,16 +2,16 @@ package isotope
 
 import "time"
 
-// IsotopeRegistration is the request body for POST /isotope/register.
-type IsotopeRegistration struct {
+// Registration is the request body for POST /isotope/register.
+type Registration struct {
 	Name     string `json:"name"`
 	Role     string `json:"role"`
 	Endpoint string `json:"endpoint"`
 	Protocol string `json:"protocol,omitempty"`
 }
 
-// IsotopeRecord describes a registered isotope instance with its assigned trust rung.
-type IsotopeRecord struct {
+// Record describes a registered isotope instance with its assigned trust rung.
+type Record struct {
 	Name         string    `json:"name"`
 	Role         string    `json:"role"`
 	Endpoint     string    `json:"endpoint"`

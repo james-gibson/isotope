@@ -207,7 +207,7 @@ func TestInferDirection(t *testing.T) {
 	}
 }
 
-func TestIsotopeResultIntegration(t *testing.T) {
+func TestResultIntegration(t *testing.T) {
 	agent := NewAgentState("service-a")
 	testIsotope := Isotope{
 		Family:    "entropy-check",

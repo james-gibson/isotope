@@ -13,25 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: Lint
+      - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
           version: latest
           args: --timeout=5m
 
-      - name: Test
-        run: go test ./... -count=1 -race -timeout 120s
+      - name: Run tests
+        run: go test ./...
 
-      - name: Create GitHub release
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            --verify-tag
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

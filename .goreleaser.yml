@@ -6,7 +6,8 @@ before:
 
 checksum:
   name_template: "checksums.txt"
-
+builds:
+  - skip: true
 changelog:
   sort: asc
   filters:

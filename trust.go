@@ -55,7 +55,7 @@ func VerifyTrust(ctx context.Context, endpoint string) int {
 // checkRegistry queries the lezz demo cluster registry at the well-known local
 // port and returns true if endpoint appears as an adhd_mcp address.
 func checkRegistry(ctx context.Context, endpoint string) bool {
-	url := fmt.Sprintf("http://127.0.0.1:%d/cluster", lezzDiscoveryPort)
+	url := fmt.Sprintf("http://localhost:%d/cluster", lezzDiscoveryPort)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return false

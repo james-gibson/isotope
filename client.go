@@ -16,7 +16,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// NewClient creates a Client targeting the given smoke-alarm base URL (e.g. "http://127.0.0.1:8088").
+// NewClient creates a Client targeting the given smoke-alarm base URL (e.g. "http://localhost:8088").
 func NewClient(baseURL string) *Client {
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),

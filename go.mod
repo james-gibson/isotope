@@ -1,6 +1,6 @@
 module github.com/james-gibson/isotope
 
-go 1.22.0
+go 1.23
 
 require github.com/grandcat/zeroconf v1.0.0
 

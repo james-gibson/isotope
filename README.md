@@ -105,6 +105,60 @@ defer srv.Shutdown()
 
 ---
 
+## The `plane` Command
+
+`cmd/plane` is a one-shot deriver that turns a charge assignment into a
+U(1)-covariant, block-diagonal edge tensor, a spanning-tree transport over the
+planes (never a star), and a three-point sort functional with holonomy and a
+quarantine closing move. There is no hyperparameter search.
+
+Build a single static binary:
+
+```sh
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o plane ./cmd/plane
+```
+
+```
+plane gen   --charges 0,1,1,2 --corpus corpus.txt --anchor 42 --out weights.json
+plane node  <string>            # → {zeta:[...], key:...}
+plane edge  <a> <b>             # → {blocks:[...], score, phase}
+plane triple <a> <b> <c>        # → {key, holonomy, frustrated, quarantined}
+plane sort                      # stdin, one plane selector per line; --anchor required
+```
+
+`gen` writes `weights.json`; the default is embedded into the binary via
+`go:embed` (`plane/weights.json`), so the other subcommands run with no external
+files. Exactly one anchor is fixed per run — `42` (real axis, proven consensus)
+or `42i` (imaginary axis, working hypothesis) — and anchors are never mixed
+within a sort. A disconnected charge graph returns an error rather than a
+default phase of 0.
+
+### §12 decisions (recorded)
+
+| Config | Decision |
+|---|---|
+| **Charges** | Default embedded model uses `1,1,-1` (a connected charge graph). `0,1,1,2` is intentionally disconnected and exercises `ErrDisconnected`. |
+| **Edge weight source** | Inverse tensor norm `1/‖T_q‖`, so routing prefers proven / high-rung planes. |
+| **Quarantine attribution** | **Flag all three suspects** — the event records both endpoints of the frustrated non-tree edge *and* their lowest common ancestor. |
+| **Anchor default** | `42` (proven consensus). `sort` requires `--anchor` to be passed explicitly; other subcommands default to `42`. |
+
+### Interpretation note
+
+The tensor, tree, transport, holonomy, and three-point key are all defined over
+**planes**. A string encodes to a `Node`: a centered coordinate vector with one
+complex value per plane. The tensor score compares two `Node`s; the
+tree/transport/holonomy operate on planes for a given coordinate vector (the CLI
+calls it the probe node, selected with `--node`, default `"42"`). The `edge`,
+`triple`, and `sort` subcommands therefore take **plane selectors** (an index or
+a plane name) rather than raw strings.
+
+Determinism is non-negotiable: no map iteration in the encoder or tree builder,
+stable tie-breaks via `slices.SortStableFunc`/`cmp.Compare`, fixed accumulation
+order (runes, then planes; edges by index), cached transports, and bit-identical
+output across runs.
+
+---
+
 ## Result Ledger
 
 The `ResultLedger` tracks test history, flakiness, regressions, and refactoring effectiveness across consensus runs:

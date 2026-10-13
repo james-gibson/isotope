@@ -31,6 +31,9 @@ go.work.sum
 # scripts/ship-plane.sh. Never commit the plaintext.
 plane/lore-weights.json
 
+# Default output of scripts/ship-plane.sh
+out/
+
 # Editor/IDE
 # .idea/
 # .vscode/

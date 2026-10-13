@@ -30,9 +30,23 @@ plain="$here/plane/lore-weights.json"
 # The age recipient the blob is encrypted to. A public key: safe to commit.
 recipient="age1zna8jjq5gsf3w2spwsqy6evnr37vsl6q252cvs702033djgtusasedq6a9"
 
-sops_cmd() {
+# Resolve sops and the age key even from a minimal environment (launchd, cron):
+# sops lives in ~/.local/bin and the key is read via SOPS_AGE_KEY_CMD.
+if ! command -v sops >/dev/null 2>&1 && [ -x "$HOME/.local/bin/sops" ]; then
+	PATH="$HOME/.local/bin:$PATH"
+	export PATH
+fi
+if [ -z "${SOPS_AGE_KEY_CMD:-}" ] && [ -x "$HOME/.config/sops/age/key-from-keychain.sh" ]; then
+	export SOPS_AGE_KEY_CMD="$HOME/.config/sops/age/key-from-keychain.sh"
+fi
+
+require_sops() {
 	if ! command -v sops >/dev/null 2>&1; then
-		echo "ship-plane: sops not found on PATH" >&2
+		echo "ship-plane: sops not found (looked on PATH and ~/.local/bin)" >&2
+		exit 1
+	fi
+	if [ -z "${SOPS_AGE_KEY_CMD:-}" ] && [ -z "${SOPS_AGE_KEY_FILE:-}" ]; then
+		echo "ship-plane: no age key — set SOPS_AGE_KEY_CMD (e.g. key-from-keychain.sh) or SOPS_AGE_KEY_FILE" >&2
 		exit 1
 	fi
 }
@@ -40,7 +54,7 @@ sops_cmd() {
 cmd="${1:-build}"
 case "$cmd" in
 encrypt)
-	sops_cmd
+	require_sops
 	src="${2:?usage: ship-plane.sh encrypt <path/to/derived-weights.json>}"
 	[ -f "$src" ] || { echo "ship-plane: no such file: $src" >&2; exit 1; }
 	sops --encrypt --input-type binary --output-type binary --age "$recipient" "$src" > "$enc"
@@ -49,7 +63,7 @@ encrypt)
 build | *)
 	out="${1:-$here/out/plane}"
 	case "$out" in /*) ;; *) out="$PWD/$out" ;; esac
-	sops_cmd
+	require_sops
 	cleanup() { rm -f "$plain"; }
 	trap cleanup EXIT
 	sops --decrypt --input-type binary --output-type binary "$enc" > "$plain"

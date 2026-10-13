@@ -62,6 +62,7 @@ func addCommonFlags(fs *flag.FlagSet) (anchor, weights *string) {
 func runGen(args []string) error {
 	fs := flag.NewFlagSet("gen", flag.ContinueOnError)
 	charges := fs.String("charges", "", "comma-separated charge list, e.g. 1,-1,-1")
+	names := fs.String("names", "", "comma-separated plane names (universe ids), in plane order; default: p<j>:q<charge>")
 	corpus := fs.String("corpus", "", "path to a corpus file (optional)")
 	out := fs.String("out", "weights.json", "output weights.json path")
 	anchorStr, _ := addCommonFlags(fs)
@@ -93,6 +94,19 @@ func runGen(args []string) error {
 	model, err := plane.GenerateModel(chargeList, anchor, text)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(*names) != "" {
+		nameList := strings.Split(*names, ",")
+		if len(nameList) != len(chargeList) {
+			return fmt.Errorf("gen: %d names for %d planes", len(nameList), len(chargeList))
+		}
+		for j := range model.Space.Planes {
+			n := strings.TrimSpace(nameList[j])
+			if n == "" {
+				return fmt.Errorf("gen: empty name at index %d", j)
+			}
+			model.Space.Planes[j].Name = n
+		}
 	}
 	data, err := model.MarshalWeights()
 	if err != nil {
@@ -126,7 +140,18 @@ func withAnchor(model *plane.Model, anchor complex128) (*plane.Model, error) {
 	if model.Space.Anchor == anchor {
 		return model, nil
 	}
-	return plane.GenerateModel(model.Space.Charges(), anchor, "")
+	next, err := plane.GenerateModel(model.Space.Charges(), anchor, "")
+	if err != nil {
+		return nil, err
+	}
+	// Regenerating rebuilds the space with structural names; carry the loaded
+	// names (universe ids) across so an id selector still resolves.
+	for j := range next.Space.Planes {
+		if j < len(model.Space.Planes) {
+			next.Space.Planes[j].Name = model.Space.Planes[j].Name
+		}
+	}
+	return next, nil
 }
 
 func runEdge(args []string, stdout io.Writer) error {

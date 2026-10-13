@@ -94,6 +94,7 @@ type treeDTO struct {
 
 type weightFile struct {
 	Version int           `json:"version"`
+	Names   []string      `json:"names,omitempty"`
 	Charges []int         `json:"charges"`
 	Anchor  Cplx          `json:"anchor"`
 	Encoder EncoderParams `json:"encoder"`
@@ -101,10 +102,22 @@ type weightFile struct {
 	Tree    treeDTO       `json:"tree"`
 }
 
+// planeNames returns the plane names in plane order — the semantic labels the
+// model carries (universe ids for a named corpus, else the structural
+// p<j>:q<charge> names NewSpace assigns).
+func planeNames(planes []Plane) []string {
+	out := make([]string, len(planes))
+	for j := range planes {
+		out[j] = planes[j].Name
+	}
+	return out
+}
+
 // MarshalWeights serializes the model to the canonical weights.json form.
 func (m *Model) MarshalWeights() ([]byte, error) {
 	wf := weightFile{
 		Version: 1,
+		Names:   planeNames(m.Space.Planes),
 		Charges: m.Space.Charges(),
 		Anchor:  toCplx(m.Space.Anchor),
 		Encoder: m.Params,
@@ -139,6 +152,16 @@ func LoadWeights(data []byte) (*Model, error) {
 	space, err := NewSpace(wf.Charges, fromCplx(wf.Anchor))
 	if err != nil {
 		return nil, err
+	}
+	if len(wf.Names) > 0 {
+		if len(wf.Names) != len(space.Planes) {
+			return nil, fmt.Errorf("plane: weights name %d planes but declare %d", len(wf.Names), len(space.Planes))
+		}
+		for j := range space.Planes {
+			if wf.Names[j] != "" {
+				space.Planes[j].Name = wf.Names[j]
+			}
+		}
 	}
 	tensor := &Tensor{charges: wf.Charges}
 	for _, b := range wf.Tensor {

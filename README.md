@@ -266,11 +266,11 @@ CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o plane ./cmd/plane
 ```
 
 ```
-plane gen   --charges 0,1,1,2 --corpus corpus.txt --anchor 42 --out weights.json
+plane gen   --charges 0,1,1,2 --corpus corpus.txt --names a,b,c,d --anchor 42 --out weights.json
 plane node  <string>            # → {zeta:[...], key:...}
 plane edge  <a> <b>             # → {blocks:[...], score, phase}
 plane triple <a> <b> <c>        # → {key, holonomy, frustrated, quarantined}
-plane sort                      # stdin, one plane selector per line; --anchor required
+plane sort                      # stdin, one selector per line (index or plane name); --anchor required
 ```
 
 `gen` writes `weights.json`; the default is embedded into the binary via
@@ -279,6 +279,12 @@ files. Exactly one anchor is fixed per run — `42` (real axis, proven consensus
 or `42i` (imaginary axis, working hypothesis) — and anchors are never mixed
 within a sort. A disconnected charge graph returns an error rather than a
 default phase of 0.
+
+Plane selectors (`edge`, `triple`, `sort`) are resolved by 0-based index or by
+exact plane name. `gen --names` — or a `names` array written by a corpus deriver —
+labels each plane with a semantic id, so `plane sort` can take a list of universe
+ids on stdin and echo them back sorted. Names round-trip through `weights.json`;
+a document without `names` falls back to the structural `p<j>:q<charge>` labels.
 
 ### §12 decisions (recorded)
 

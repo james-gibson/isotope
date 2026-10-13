@@ -286,6 +286,31 @@ labels each plane with a semantic id, so `plane sort` can take a list of univers
 ids on stdin and echo them back sorted. Names round-trip through `weights.json`;
 a document without `names` falls back to the structural `p<j>:q<charge>` labels.
 
+### Corpus weights
+
+A default build embeds only the generic model — three structural planes at the
+anchor `42i` hypothesis state (real part 0). It carries no corpus, so it cannot
+resolve a corpus's own plane names.
+
+A corpus can instead be packed into the binary. The corpus-derived weights are
+committed to this (public) repo **only as a SOPS-encrypted blob**
+(`plane/lore-weights.enc.json`). `scripts/ship-plane.sh` decrypts it to the
+git-ignored `plane/lore-weights.json`, builds with `-tags loreweights`, then
+removes the plaintext — so the corpus labels (universe ids) never enter the
+tree, but *are* embedded in the shipped binary:
+
+```sh
+./scripts/ship-plane.sh                                  # → out/plane
+./scripts/ship-plane.sh /tmp/plane
+./scripts/ship-plane.sh encrypt <derived-weights.json>   # refresh the blob
+```
+
+Decryption needs the age key (`SOPS_AGE_KEY_CMD` or `SOPS_AGE_KEY_FILE`). With
+the tag, `EmbeddedModel` prefers the corpus model (falling back to the generic
+one if the build carried none); `EmbeddedGenericModel` always returns the
+corpus-free `42i` model. Without a key, build normally and you simply get the
+generic model.
+
 ### §12 decisions (recorded)
 
 | Config | Decision |
@@ -294,6 +319,7 @@ a document without `names` falls back to the structural `p<j>:q<charge>` labels.
 | **Edge weight source** | Inverse tensor norm `1/‖T_q‖`, so routing prefers proven / high-rung planes. |
 | **Quarantine attribution** | **Flag all three suspects** — the event records both endpoints of the frustrated non-tree edge *and* their lowest common ancestor. |
 | **Anchor default** | `42` (proven consensus). `sort` requires `--anchor` to be passed explicitly; other subcommands default to `42`. |
+| **Embedded model** | No weights is the `42i`+0 hypothesis state: a default build embeds the generic corpus-free model there. A `-tags loreweights` build embeds the SOPS-decrypted corpus model and prefers it. |
 
 ### Interpretation note
 

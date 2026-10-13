@@ -27,6 +27,10 @@ go.work.sum
 # env file
 .env
 
+# Corpus-derived plane weights: decrypted from plane/lore-weights.enc.json by
+# scripts/ship-plane.sh. Never commit the plaintext.
+plane/lore-weights.json
+
 # Editor/IDE
 # .idea/
 # .vscode/

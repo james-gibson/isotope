@@ -45,7 +45,23 @@ func GenerateModel(charges []int, anchor complex128, corpus string) (*Model, err
 }
 
 // EmbeddedModel parses the model embedded into the binary at build time.
+//
+// A `-tags loreweights` build carries a corpus-derived model and prefers it, so
+// `sort` resolves the corpus's own plane names (universe ids) with no --weights
+// file. Every other build carries only the generic model, and callers that want
+// it explicitly should use EmbeddedGenericModel.
 func EmbeddedModel() (*Model, error) {
+	if len(loreWeightsJSON) > 0 {
+		return LoadWeights(loreWeightsJSON)
+	}
+	return LoadWeights(embeddedWeights)
+}
+
+// EmbeddedGenericModel parses the corpus-free model packed into every binary:
+// three structural planes at the anchor-42i hypothesis state. It is what
+// EmbeddedModel returns when the binary was built without corpus weights, and
+// the reference for "no weights".
+func EmbeddedGenericModel() (*Model, error) {
 	return LoadWeights(embeddedWeights)
 }
 

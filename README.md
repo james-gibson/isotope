@@ -8,6 +8,26 @@ Not a binary. All lab tools depend on it.
 
 ---
 
+## Trust after connection
+
+**A caller can connect to an MCP service; whether it is trusted after connecting is
+a separate question, and one most transport specifications do not answer.** This lab
+measures it. A caller carries a **42i distance** — the extent to which it has
+departed from **nominal** (the service level a call promises) against **linear time**
+(the shared tick) — and the distance maps to a **rung** that limits what the caller
+may read. A caller that keeps departing is removed from the routeable set.
+
+```
+ nominal ●────────────  the level a call promises
+          ╲
+           ╲ distance     +8 / +16 / +32 …
+            ●───────────  where it landed (linear time →)
+```
+
+One measure, regardless of source — a stale credential, a clock skew, a tampered
+receipt, a honeypot contact. Model and references: `james-gibson/lab-safety` →
+`lab/SPLASH.md`, `lab/PLANE.md`, `lab/MATH.md`.
+
 ## What It Does
 
 The isotope protocol answers one question — **how far has this agent drifted from the seed-42 ground truth?** — and expresses the answer as a *42i distance* that maps to a capability rung.

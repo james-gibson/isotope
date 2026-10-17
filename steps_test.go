@@ -44,8 +44,35 @@ func TestDefineReadsWorkspaceDeclarations(t *testing.T) {
 	if got, want := spec.ByKind("prompt"), []string{"summarize"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("prompts = %v, want %v", got, want)
 	}
-	if got, want := spec.Kinds(), []string{"prompt", "resource", "tool"}; !reflect.DeepEqual(got, want) {
+	// the spec's own file layout: what the steps name on disk
+	if got, want := spec.ByKind("resource_file"), []string{"/resources/workspace/config.json"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("resource files = %v, want %v", got, want)
+	}
+	if got, want := spec.ByKind("tool_file"), []string{"/tools/echo@"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("tool files = %v, want %v", got, want)
+	}
+	if got, want := spec.ByKind("prompt_file"), []string{"/prompts/summarize.tmpl"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("prompt files = %v, want %v", got, want)
+	}
+	if got, want := spec.Kinds(), []string{"prompt", "prompt_file", "resource", "resource_file", "tool", "tool_file"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("kinds = %v, want %v", got, want)
+	}
+}
+
+// A step may declare more than one thing: the file it names and the name the
+// surface presents are both consequences of one line of the spec.
+func TestOneStepMayDeclareTwoThings(t *testing.T) {
+	src := "Feature: f\n  Scenario: s\n" +
+		"    Given the resource file \"/resources/a/b.json\"\n"
+	spec, err := Define(src, WorkspaceStepDefinitions()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := spec.ByKind("resource_file"), []string{"/resources/a/b.json"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("resource files = %v, want %v", got, want)
+	}
+	if got, want := spec.ByKind("resource"), []string{"resource://a/b"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("resources = %v, want %v", got, want)
 	}
 }
 
@@ -57,11 +84,16 @@ func TestDefineIgnoresStepsThatDeclareNothing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(spec.Declarations) != 1 {
-		t.Fatalf("declarations = %+v, want exactly 1", spec.Declarations)
+	// "an unremarkable step" declares nothing; the resource step declares the
+	// file *and* the URI.
+	if len(spec.Declarations) != 2 {
+		t.Fatalf("declarations = %+v, want exactly 2", spec.Declarations)
 	}
-	if spec.Declarations[0].Kind != "resource" {
-		t.Errorf("kind = %q", spec.Declarations[0].Kind)
+	if got := spec.ByKind("resource"); len(got) != 1 {
+		t.Errorf("resources = %v, want one", got)
+	}
+	if got := spec.ByKind("resource_file"); len(got) != 1 {
+		t.Errorf("resource files = %v, want one", got)
 	}
 }
 

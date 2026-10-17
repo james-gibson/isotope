@@ -116,7 +116,8 @@ func (c compiledDefinition) match(text string) (map[string]string, bool) {
 
 // Define parses gherkin and applies defs to every step, in source order. A step
 // that matches no definition declares nothing; a definition that yields "" is
-// skipped.
+// skipped. Every *matching* definition is applied — one step may declare more
+// than one thing (the file it names and the name the surface presents).
 func Define(gherkin string, defs ...StepDefinition) (*Spec, error) {
 	ast, err := ParseGherkin(gherkin)
 	if err != nil {
@@ -142,7 +143,6 @@ func Define(gherkin string, defs ...StepDefinition) (*Spec, error) {
 					if v := cd.def.Value(vars); v != "" {
 						spec.Declarations = append(spec.Declarations, Declaration{Kind: cd.def.Kind, Value: v})
 					}
-					break
 				}
 			}
 		}
@@ -181,8 +181,19 @@ func PromptName(p string) string { return path.Base(strings.TrimSuffix(p, ".tmpl
 
 // WorkspaceStepDefinitions returns the definitions for the workspace-VFS gate
 // vocabulary (lab-safety sheets/workspaces/minimal.feature §2).
+//
+// Each surface declares two things, and both matter: the *file* the step names
+// (what must exist on disk — the on-disk conventions the spec fixes) and the
+// *name* the surface presents (what resources/list, tools/list and prompts/list
+// answer with). Reading only the name loses what the spec said; reading only the
+// file loses what the surface says. One step declares both.
 func WorkspaceStepDefinitions() []StepDefinition {
 	return []StepDefinition{
+		{
+			Pattern: `the resource file "{path}"`,
+			Kind:    "resource_file",
+			Value:   func(v map[string]string) string { return v["path"] },
+		},
 		{
 			Pattern: `the resource file "{path}"`,
 			Kind:    "resource",
@@ -190,8 +201,18 @@ func WorkspaceStepDefinitions() []StepDefinition {
 		},
 		{
 			Pattern: `an executable endpoint "{path}"`,
+			Kind:    "tool_file",
+			Value:   func(v map[string]string) string { return v["path"] },
+		},
+		{
+			Pattern: `an executable endpoint "{path}"`,
 			Kind:    "tool",
 			Value:   func(v map[string]string) string { return ToolName(v["path"]) },
+		},
+		{
+			Pattern: `the template "{path}"`,
+			Kind:    "prompt_file",
+			Value:   func(v map[string]string) string { return v["path"] },
 		},
 		{
 			Pattern: `the template "{path}"`,

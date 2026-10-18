@@ -99,9 +99,9 @@ func TestDefineIgnoresStepsThatDeclareNothing(t *testing.T) {
 
 func TestStepPatternCapturesAndDeduplicates(t *testing.T) {
 	defs := []StepDefinition{{
-		Pattern: `the widget "{name}" is "{colour}"`,
+		Pattern: `the widget "{name}" is "{color}"`,
 		Kind:    "widget",
-		Value:   func(v map[string]string) string { return v["name"] + ":" + v["colour"] },
+		Value:   func(v map[string]string) string { return v["name"] + ":" + v["color"] },
 	}}
 	src := "Feature: f\n  Scenario: s\n" +
 		"    Given the widget \"a\" is \"red\"\n" +

@@ -47,6 +47,10 @@ linters:
 
     misspell:
       locale: US
+      # The French fixtures say "page de connexion" — a correct French word,
+      # not a misspelling of "connection".
+      ignore-rules:
+        - connexion
 
     gocritic:
       enabled-tags:

@@ -69,6 +69,48 @@ isotope, err := isotope.CanonicalizeGherkinToIsotope(gherkinText, signingKey, "i
 fmt.Println(isotope.String()) // "iso-login-v1:a3f2b1c4d5e6f7a8"
 ```
 
+#### Two layers: the name routes, the intent compares
+
+The name isotope identifies a promise's **wording**. Keywords normalize across
+languages (`Dado` → `GIVEN`, `Alors` → `THEN`), but step prose is hashed as
+written, so the same test translated into Spanish is a **new name**. That is what
+a route wants: a change to what is declared is visible, in any language.
+
+Comparing tests across languages needs its own layer. Declare a golden,
+unlocalized intent and the wording that realizes it, and the canon resolves the
+prose onto it:
+
+```go
+ix, err := isotope.NewIntentIndex(
+    isotope.Intent{
+        Key:    "login.user-on-page",
+        Anchor: "the user is on the login page",
+        Locales: map[string]string{
+            "es": "que el usuario está en la página de inicio de sesión",
+        },
+    },
+)
+
+intent, canonical, err := isotope.CanonicalizeGherkinToIntentIsotope(
+    spanishGherkin, ix, signingKey, "iso-login-intent", 1)
+fmt.Println(intent.String()) // same for every language, once every wording is declared
+fmt.Println(canonical.Unresolved) // any wording the index did not cover
+```
+
+Two localized specs whose intents match produce the same **intent isotope** while
+their names differ. The canon does not guess: a wording that is not declared is
+kept verbatim and reported, never matched by similarity, stemming, or
+translation. The relation between two languages is the declared realization map,
+so it is constant across every test it covers — `ix.Coverage("es")` says whether
+that rotation is total or partial. With an empty index nothing resolves and the
+intent stream is byte-identical to the name stream.
+
+What reads no words at all is the positional layer: the anchor is subtracted from
+the probe frame (`42 - 42i` when the anchor turns from `42` to `42i`, the same
+displacement for every input), the charge is polarity rather than vocabulary, and
+the trace counts visits. Cross-language coordination that cannot be declared
+belongs there, not on a name.
+
 ### Byzantine Consensus
 
 ```go

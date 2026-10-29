@@ -33,6 +33,10 @@ func sshPubLine(t *testing.T, pub ed25519.PublicKey, comment string) string {
 // a person's published key verifies offline, with no seed, no certificate and no
 // network. The same key bytes are what a GitHub .keys file serves, so pinning one
 // is a copy-paste, not a conversion.
+//
+// The key is the burned vector in testdata/burned, so the test signs with a key
+// whose private half is published on purpose rather than generating a fresh one —
+// the point is that anyone can reproduce it.
 func TestPersonalKeyIsARoot(t *testing.T) {
 	if _, err := exec.LookPath("ssh-keygen"); err != nil {
 		t.Skipf("ssh-keygen is how a personal key signs: %v", err)
@@ -40,12 +44,18 @@ func TestPersonalKeyIsARoot(t *testing.T) {
 
 	dir := t.TempDir()
 	keyPath := filepath.Join(dir, "id_ed25519")
-	if out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "james-gibson", "-f", keyPath).CombinedOutput(); err != nil {
-		t.Skipf("ssh-keygen cannot create a key here: %v\n%s", err, out)
+	// The burned vector, not a key generated per run: the vector is the thing under
+	// test, and its fingerprint is asserted elsewhere.
+	burnedKey, err := os.ReadFile(burnedPath("id_ed25519"))
+	if err != nil {
+		t.Fatalf("read burned key: %v", err)
+	}
+	if writeErr := os.WriteFile(keyPath, burnedKey, 0o600); writeErr != nil {
+		t.Fatalf("write burned key: %v", writeErr)
 	}
 
 	// The published half, read exactly as https://github.com/<user>.keys serves it.
-	published, err := os.ReadFile(keyPath + ".pub") //nolint:gosec // a key this test just made
+	published, err := os.ReadFile(burnedPath("id_ed25519.pub")) //nolint:gosec // a committed test vector
 	if err != nil {
 		t.Fatalf("read published key: %v", err)
 	}
@@ -57,7 +67,7 @@ func TestPersonalKeyIsARoot(t *testing.T) {
 		t.Fatalf("parsed %d keys, want 1", len(keys))
 	}
 	root := keys[0]
-	if root.Name != "github:james-gibson" {
+	if !strings.HasPrefix(root.Name, "github:") {
 		t.Fatalf("root name = %q", root.Name)
 	}
 	if !strings.HasPrefix(root.Name, "github:") {

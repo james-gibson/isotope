@@ -105,6 +105,10 @@ func ParseKeyList(body, namePrefix string) ([]Key, error) {
 		if name == "" {
 			name = ShortFingerprint(key.PublicKey)
 		}
+		// A root's name is used as an allowed_signers principal and as a key in a
+		// trust set, where whitespace separates fields. Fold it rather than emit a
+		// name that cannot be written down.
+		name = strings.Join(strings.Fields(name), "-")
 		key.Name = namePrefix + name
 		keys = append(keys, key)
 	}

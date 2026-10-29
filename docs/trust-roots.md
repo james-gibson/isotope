@@ -163,6 +163,24 @@ identity — which is what makes a personal root useful rather than decorative.
 
 `safe`: publishing a key is not a claim about what it may do. Pinning it is.
 
+### The burned vector
+
+For a result anyone can reproduce without asking for a key, `testdata/burned/`
+commits a **deliberately burned** keypair: private half included, comment says
+`DO NOT USE`, and nothing it signs is worth anything. The committed
+`note.md` + `note.md.sig` verify with the committed public half, offline:
+
+```sh
+cd testdata/burned
+ssh-keygen -Y verify -f allowed_signers -I isotope-burned -n lezz-note -s note.md.sig < note.md
+```
+
+`go test` asserts that vector, that the private half really is the published key's
+pair, and that the same key roots a cluster whose member's receipt verifies. A test
+that needs a signature that *should* be refused generates a fresh key instead — the
+burned one is for the positive path, so its fingerprint is asserted rather than
+regenerated.
+
 ## What a verifier holds
 
 ```go

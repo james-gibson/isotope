@@ -13,7 +13,13 @@ import (
 
 // The burned vector's fingerprint. It is asserted so a regenerated key shows up as
 // a diff instead of quietly changing what the committed signature means.
-const burnedFingerprint = "SHA256:w3+sxEvESgsmFobmbBlpM0yuslXz0pgS+2TLZOjJDgw"
+const burnedFingerprint = "SHA256:YzfLqN67xkxrW/BxBnrVTSNDIzrpDEYt0/Twc8jUjOo"
+
+// burnedPrincipal is the identity the vector is registered under. It is Zaphod
+// Beeblebrox because a burned key is one whose private half everybody has, which
+// is the least trustworthy owner the lab could imagine — and the point of the
+// vector is that verification does not care who it is.
+const burnedPrincipal = "zaphod-beeblebrox"
 
 func burnedPath(name string) string {
 	return filepath.Join("testdata", "burned", name)
@@ -37,7 +43,7 @@ func TestBurnedVectorVerifiesOffline(t *testing.T) {
 
 	verify := exec.Command("ssh-keygen", "-Y", "verify",
 		"-f", burnedPath("allowed_signers"),
-		"-I", "isotope-burned",
+		"-I", burnedPrincipal,
 		"-n", "lezz-note",
 		"-s", burnedPath("note.md.sig"),
 	)
@@ -86,7 +92,7 @@ func TestBurnedKeySignsAndThePublishedHalfVerifies(t *testing.T) {
 	defer func() { _ = message.Close() }()
 	verify := exec.Command("ssh-keygen", "-Y", "verify",
 		"-f", burnedPath("allowed_signers"),
-		"-I", "isotope-burned",
+		"-I", burnedPrincipal,
 		"-n", "lezz-note",
 		"-s", notePath+".sig",
 	)
@@ -111,7 +117,7 @@ func TestBurnedKeyIsATrustRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse published half: %v", err)
 	}
-	const rootName = "testdata:isotope-burned"
+	const rootName = "testdata:zaphod"
 	roots, err := ParseRoots(map[string]string{rootName: base64.StdEncoding.EncodeToString(key.PublicKey)})
 	if err != nil {
 		t.Fatalf("pin the burned key as a root: %v", err)

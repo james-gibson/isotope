@@ -166,13 +166,16 @@ identity — which is what makes a personal root useful rather than decorative.
 ### The burned vector
 
 For a result anyone can reproduce without asking for a key, `testdata/burned/`
-commits a **deliberately burned** keypair: private half included, comment says
-`DO NOT USE`, and nothing it signs is worth anything. The committed
-`note.md` + `note.md.sig` verify with the committed public half, offline:
+commits a **deliberately burned** keypair owned by Zaphod Beeblebrox: private half
+included, comment says `DO NOT USE`, and nothing it signs is worth anything. A
+burned key is one everybody has, which makes him the least trustworthy owner
+available — and verification does not care who signed, only what the signature
+proves. The committed `note.md` + `note.md.sig` verify with the committed public
+half, offline:
 
 ```sh
 cd testdata/burned
-ssh-keygen -Y verify -f allowed_signers -I isotope-burned -n lezz-note -s note.md.sig < note.md
+ssh-keygen -Y verify -f allowed_signers -I zaphod-beeblebrox -n lezz-note -s note.md.sig < note.md
 ```
 
 `go test` asserts that vector, that the private half really is the published key's

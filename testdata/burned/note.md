@@ -1,3 +1,3 @@
-isotope burned test vector
+# Don't Panic
 
-today: trusts only what it pinned
+42 is a coordinate, not a credential. Trust is what I pinned.

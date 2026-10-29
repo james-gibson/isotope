@@ -48,14 +48,48 @@ Ground truth lives at `42 + 0i` (seed-42). Each test failure moves an agent alon
 
 ### Trust Verification
 
-`VerifyTrust(ctx, endpoint)` determines a rung by checking the lezz cluster registry and mDNS:
+A rung is granted from **evidence**, not from presence. A registrant presents a
+cluster *attestation* — an HMAC receipt over the cluster identity and its own
+endpoint, signed with the cluster's launch secret — and only an attested
+registration can rise above the floor:
 
-| Condition | Rung |
-|-----------|------|
-| Registry + mDNS confirmed | 6 — Certification |
-| Registry only | 4 — Higher Authority |
-| Self-registered, no cluster | 2 — Harness Tools |
+| Evidence | Rung |
+|----------|------|
+| Attested, registry names this host:port, mDNS confirms the cluster | 6 — Certification |
+| Attested and registry-confirmed, mDNS did not confirm | 4 — Higher Authority |
+| Unattested, wrong secret, unknown cluster, or no matching registry entry | 2 — Harness Tools |
 | No registration | 0 — Absolute Zero |
+
+An mDNS miss costs the top rung and nothing else: a rolling restart looks exactly
+like that, so absence is a lease, never a revocation (isotope#23).
+
+`VerifyTrust(ctx, endpoint)` still exists for callers with no attestation to
+offer; it can only reach rung 2, because a registry that anyone can write and an
+advertisement that anyone can publish are not evidence. Use
+`VerifyRegistration(ctx, TrustConfig{Secrets: …}, Registration{Attestation: …})`
+to verify attested registrations.
+
+### Attestation
+
+The cluster's operator mints one secret when the cluster starts and hands it to
+the processes it trusts — in a lezz demo, to the smoke-alarm it runs and to the
+agents it spawns. Neither side sends the secret; the registrant sends a receipt:
+
+```go
+att := isotope.SignAttestation(secret, "demo-1234", "http://127.0.0.1:60099/mcp", time.Now())
+// POST /isotope/register {"endpoint": "...", "attestation": att}
+
+verdict := isotope.VerifyRegistration(ctx, isotope.TrustConfig{
+    Secrets: map[string]string{"demo-1234": secret},
+}, isotope.Registration{Endpoint: endpoint, Attestation: &att})
+fmt.Println(verdict.Rung, verdict.Reasons)
+```
+
+The MAC binds the cluster, the endpoint and the issue time, so a receipt cannot
+be replayed for another endpoint, and a receipt for one cluster says nothing
+about another. Endpoints are matched by **host:port**; an endpoint bound to all
+interfaces (`:9090`, `0.0.0.0:9090`) matches any host, because that is what the
+bind means.
 
 ---
 
@@ -94,8 +128,14 @@ fmt.Println(state.Position.Rung) // current rung
 ### Trust Verification
 
 ```go
-rung, err := isotope.VerifyTrust(ctx, "http://localhost:8088")
-// Returns 2, 4, or 6
+// Unattested: always the floor, whatever the registry says.
+isotope.VerifyTrust(ctx, "http://localhost:8088") // 2
+
+// Attested: 2, 4 or 6, with the reasons behind the verdict.
+att := isotope.SignAttestation(secret, cluster, endpoint, time.Now())
+verdict := isotope.VerifyRegistration(ctx, isotope.TrustConfig{
+    Secrets: map[string]string{cluster: secret},
+}, isotope.Registration{Endpoint: endpoint, Attestation: &att})
 ```
 
 ### REST Client (smoke-alarm isotope endpoints)
@@ -204,7 +244,9 @@ go get github.com/james-gibson/isotope
 isotope is the shared library that all lab tools depend on. See [lab-safety](https://github.com/james-gibson/lab-safety) for a full map of how the tools connect.
 
 Tools that use isotope:
-- **ocd-smoke-alarm** — serves `/isotope/register` and `/isotope/list`; calls `VerifyTrust` on each registrant
+- **ocd-smoke-alarm** — serves `/isotope/register` and `/isotope/list`; calls
+  `VerifyRegistration` on each registrant with the cluster secrets it was started
+  with
 - **adhd** — registers itself on startup; calls `Advertise` to broadcast `_adhd-isotope._tcp`
 - **lezz.go** — calls `Client.List` to include trust levels in the demo cluster summary
 

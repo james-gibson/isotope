@@ -92,7 +92,7 @@ func TestVerifyRegistrationRungLadder(t *testing.T) {
 			entries: map[string]clusterEntry{"someone-else": entry},
 			ads:     []Advertisement{localAd(testCluster, 19100)},
 			want:    2,
-			reason:  "not attested by this alarm",
+			reason:  "holds no secret for cluster",
 		},
 		{
 			name:    "wrong secret",

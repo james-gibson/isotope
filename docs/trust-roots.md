@@ -33,16 +33,39 @@ everything else is 2. What changed is only what counts as *attested*.
 
 ## Roots
 
-| root | identity | private key | trusted by default |
+| root | identity | private key | trusted where |
 | --- | --- | --- | --- |
-| public base | `seed-42` | the lab operator's; never in a repo | every trust set |
+| public base | `seed-42` | the lab operator's; never in a repo | the trust sets that *pin its key* |
 | a private cluster | its cluster id | that cluster's operator | only the hosts that pin it |
 
-**`seed-42` is the public base seed.** Its public key is embedded in isotope
-(`PublicSeedKey`), so a tool can verify a public cluster with no configuration at
-all; the private half is provisioned once by the operator and never enters a
-repository (see `cmd/seed42`). A trust set that resolves the public root accepts
-public clusters and adds them to its own set.
+**Nothing is embedded.** `seed-42` is a name, not a key in the binary. A cluster
+launched offline must have exactly the same trust as one launched online, and an
+embedded root would make "trusted by seed-42" a property of the build rather than
+of what the operator pinned. So the public key travels with the seed — in
+`seed.json`, or in the alarm config a cluster generates — and verification never
+reaches the network for it.
+
+The consequence is deliberate: a trust set that does not carry seed-42's key
+accepts no public cluster, and one that carries it accepts them all. "Private
+clusters trust public clusters" is therefore a statement about what a private
+seed pins, not a default the library supplies.
+
+### Where a root lives: seed.json
+
+A cluster is a workspace of workspaces serviced by clusters, and `seed.json` is
+where a workspace says which roots it accepts. The pin travels with the project
+and with the cluster it generates, so:
+
+- a laptop with no network trusts its own cluster and any public cluster whose
+  root is in its seed, and refuses everything else — the same set it would trust
+  online;
+- a public surface trusts only what its own seed pins, so adopting `seed-42`
+  somewhere does not make a stranger's private cluster admissible there;
+- re-pinning a root is a `seed.json` change, reviewable in the same diff as the
+  rest of the project's placement.
+
+Nothing about the network, the registry, or discovery participates in choosing a
+root.
 
 **The edge is asymmetric on purpose.** A private cluster trusts a public one; the
 public one does not thereby trust the private one. Publishing a key is not a
@@ -117,9 +140,11 @@ derived key, so it does not replace a certificate, it scopes one.
 
 ```go
 iso.TrustConfig{
-    // Roots it pins by name: "seed-42" is added automatically when the embedded
-    // public key is provisioned.
-    Roots: map[string]string{"home": "base64(ed25519 public key)"},
+    // Every root it accepts, named. Nothing is added for it: no entry, no trust.
+    Roots: map[string]string{
+        "seed-42": "base64(ed25519 public key)", // public clusters
+        "home":    "base64(ed25519 public key)", // this private root
+    },
     // Symmetric clusters, including derived children.
     Secrets: map[string]string{"home-kb": derived},
 }
@@ -136,12 +161,14 @@ the code refuses is inferring that from proximity, discovery, or the registry.
 - **No transitive trust.** A certificate chains to a pinned root, one hop. "A
   trusts B, B trusts C, therefore A trusts C" is how a lab loses control of its
   own surface.
-- **No discovery of roots.** A root's key arrives out of band (embedded, or
-  pinned in configuration). Reading it from mDNS or the registry would rebuild
-  isotope#23 one level up.
+- **No discovery of roots, and no embedded ones.** A root's key arrives with the
+  seed: pinned in `seed.json` or in the configuration a cluster generated. Reading
+  it from mDNS or the registry would rebuild isotope#23 one level up; baking it
+  into the binary would make offline and online clusters trust different things.
 - **No rung movement from scheme.** A certificate does not make a registration
   6 by itself; the registry and mDNS evidence still have to agree, because those
   are what say "this endpoint, here, now".
-- **No key material in the repo.** `cmd/seed42` prints a keypair for the
-  operator to provision; the public half may be committed, the private half
-  never.
+- **No key material in the repo, and no public key in the library either.**
+  `cmd/seed42` prints a keypair for the operator to provision; the public half
+  goes into the seeds and cluster configs that should accept it, the private half
+  never leaves the operator's store.

@@ -66,9 +66,11 @@ Attestation comes in two schemes, and a verifier accepts either:
 | `hmac-sha256` | shared secret (or a **derived subkey** handed to a child cluster) | only holders of that secret — verification implies the ability to mint |
 | `ed25519` | the cluster's signature plus its **certificate** | any verifier that pins the issuing root |
 
-The public base seed is **`seed-42`**: its public key is embedded in isotope, so a
-private trust set accepts public clusters without configuring anything, while the
-public side does not thereby trust the private one. Certificates carry a scope and
+The public base seed is **`seed-42`** — a name, not a key compiled into isotope. A
+cluster pins the roots it accepts (in `seed.json`, or in the config it generates),
+so one launched offline trusts exactly what one launched online does: seed-42's key
+travels with the seed, never the build. A private trust set accepts public clusters
+by pinning it; the public side does not thereby trust the private one. Certificates carry a scope and
 an optional expiry, chain one hop (root → cluster → receipt), and a self-signed
 private root is valid only where its key is pinned. See
 [docs/trust-roots.md](docs/trust-roots.md) for the model, the reason each edge is
@@ -83,7 +85,10 @@ cert, _ := isotope.SignCertificate(isotope.Certificate{
 att := isotope.SignReceiptEd25519(clusterKey, cert, endpoint, time.Now())
 
 verdict := isotope.VerifyRegistration(ctx, isotope.TrustConfig{
-    Roots: map[string]string{"home": privateRootPub},   // seed-42 is added automatically
+    Roots: map[string]string{
+        "seed-42": publicRootPub, // pinning it is what admits public clusters
+        "home":    privateRootPub,
+    },
 }, isotope.Registration{Endpoint: endpoint, Attestation: &att})
 
 // Symmetric: a parent scopes a child without handing over its own secret.

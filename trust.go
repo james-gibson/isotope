@@ -115,8 +115,8 @@ type TrustConfig struct {
 	// Roots maps a trust root's name to its ed25519 public key (base64). A
 	// certificate issued by a root named here is accepted, which is how a private
 	// cluster trusts another cluster's members without holding their secret.
-	// "seed-42" is added automatically when its public key is provisioned, so
-	// private clusters trust public ones by default (docs/trust-roots.md).
+	// Nothing is implicit: an empty map pins nothing, so a cluster trusts exactly
+	// what it was given, online or offline (docs/trust-roots.md).
 	Roots map[string]string
 	// RegistryURL is the discovery registry to read. Empty means
 	// http://127.0.0.1:19100/cluster.
@@ -149,8 +149,8 @@ func (v *TrustVerdict) explain(format string, args ...any) {
 }
 
 // keyring resolves the configuration into the roots and secrets a receipt is
-// checked against. The public seed is added here, once, so no call site has to
-// remember the default edge.
+// checked against. There is no implicit root: what a cluster trusts is what its
+// configuration (ultimately its seed) pinned.
 func (c TrustConfig) keyring() (Keyring, error) {
 	roots, err := ParseRoots(c.Roots)
 	if err != nil {

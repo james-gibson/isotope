@@ -7,44 +7,24 @@ import (
 	"strings"
 )
 
-// PublicSeedCluster is the lab's public base seed. It is the root that certifies
-// public clusters, and every trust set resolves it by default — a private cluster
-// trusts a public one, while the public one does not thereby trust the private
-// one (docs/trust-roots.md).
+// PublicSeedCluster is the conventional *name* of the lab's public base seed.
+//
+// It is only a name. No key is embedded for it, on purpose: a cluster launched
+// offline must have exactly the same trust as one launched online, and a root
+// baked into the binary would make "trusted by seed-42" a property of the build
+// rather than of what the operator pinned. The key travels with the seed — in
+// seed.json, or in the alarm config a cluster generates — and verification never
+// reaches the network for it (docs/trust-roots.md).
 const PublicSeedCluster = "seed-42"
 
-// publicSeedKey is base64(seed-42's ed25519 public key).
+// ParseRoots turns a name→base64 configuration into the roots a verifier pins.
 //
-// The private half is provisioned once by the operator and never committed; see
-// cmd/seed42. Until it is provisioned this is empty, PublicSeedKey returns nil,
-// and no public cluster can be certified — an empty key must never be treated as
-// "trust everything".
-const publicSeedKey = ""
-
-// PublicSeedKey returns seed-42's public key, or nil when it has not been
-// provisioned yet.
-func PublicSeedKey() ed25519.PublicKey {
-	if publicSeedKey == "" {
-		return nil
-	}
-	raw, err := base64.StdEncoding.DecodeString(publicSeedKey)
-	if err != nil || len(raw) != ed25519.PublicKeySize {
-		return nil
-	}
-	return ed25519.PublicKey(raw)
-}
-
-// ParseRoots turns a name→base64 configuration into the keyring's roots, adding
-// the public seed when it is available.
-//
-// The public root is added even to a set that pinned private roots: "private
-// clusters will also trust public clusters" is the default edge, and the reverse
-// needs an explicit entry rather than an inference.
+// There is no implicit root. An empty map pins nothing, so nothing is attested;
+// naming seed-42 is not enough, its key has to be there. That is what makes an
+// offline cluster trust exactly what an online one does: the difference between
+// them is connectivity, never authority.
 func ParseRoots(configured map[string]string) (map[string]ed25519.PublicKey, error) {
-	roots := make(map[string]ed25519.PublicKey, len(configured)+1)
-	if key := PublicSeedKey(); key != nil {
-		roots[PublicSeedCluster] = key
-	}
+	roots := make(map[string]ed25519.PublicKey, len(configured))
 	for name, encoded := range configured {
 		name = strings.TrimSpace(name)
 		if name == "" {

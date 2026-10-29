@@ -259,10 +259,9 @@ func TestParseRootsValidatesAndAddsThePublicSeed(t *testing.T) {
 	if _, ok := roots["home"]; !ok {
 		t.Fatal("a configured root is missing")
 	}
-	if PublicSeedKey() != nil {
-		if _, ok := roots[PublicSeedCluster]; !ok {
-			t.Fatal("the public seed is not resolved by default")
-		}
+	// Naming the public seed is not the same as pinning it: no entry, no trust.
+	if _, ok := roots[PublicSeedCluster]; ok {
+		t.Fatal("ParseRoots invented a public root the configuration did not pin")
 	}
 
 	for _, bad := range []map[string]string{
@@ -276,24 +275,26 @@ func TestParseRootsValidatesAndAddsThePublicSeed(t *testing.T) {
 	}
 }
 
-// TestPublicSeedKeyIsEmptyUntilProvisioned: an empty key must never mean "trust
-// everything", and the constant ships empty.
-func TestPublicSeedKeyIsEmptyUntilProvisioned(t *testing.T) {
-	key := PublicSeedKey()
-	if key == nil {
-		// Unprovisioned: no public root is resolved, and the private-root case
-		// still works.
-		roots, err := ParseRoots(nil)
-		if err != nil {
-			t.Fatalf("parse empty roots: %v", err)
-		}
-		if _, ok := roots[PublicSeedCluster]; ok {
-			t.Fatal("an empty public key was resolved as a root")
-		}
-		return
+// TestNoRootIsEmbedded is the offline/online invariant: a cluster trusts exactly
+// the roots its seed (or generated config) pins, so a build with no network and a
+// build with one make the same decision.
+func TestNoRootIsEmbedded(t *testing.T) {
+	roots, err := ParseRoots(nil)
+	if err != nil {
+		t.Fatalf("parse empty roots: %v", err)
 	}
-	if len(key) != ed25519.PublicKeySize {
-		t.Fatalf("public seed key has length %d", len(key))
+	if len(roots) != 0 {
+		t.Fatalf("an empty configuration resolved %d roots", len(roots))
+	}
+
+	// Naming the public seed does nothing without its key; supplying the key does.
+	pub, _ := keypair(t)
+	pinned, err := ParseRoots(map[string]string{PublicSeedCluster: b64(pub)})
+	if err != nil {
+		t.Fatalf("parse pinned public seed: %v", err)
+	}
+	if got, ok := pinned[PublicSeedCluster]; !ok || !got.Equal(pub) {
+		t.Fatal("a pinned public seed was not resolved")
 	}
 }
 
@@ -329,7 +330,8 @@ func TestEd25519RegistrationReachesCertification(t *testing.T) {
 		t.Fatalf("evidence does not name the scheme: %v", verdict.Reasons)
 	}
 
-	// Without the pinned root the same registration is just a self-declared claim.
+	// With nothing pinned (the default), the same registration is just a
+	// self-declared claim: there is no implicit root to fall back on.
 	closed := cfg
 	closed.Roots = map[string]string{}
 	if got := VerifyRegistration(context.Background(), closed, Registration{Endpoint: endpoint, Attestation: &receipt}).Rung; got != 2 {

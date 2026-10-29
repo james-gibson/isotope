@@ -1,8 +1,10 @@
 // Command seed42 provisions the public base seed's keypair.
 //
 // The private half is the lab's public root of trust: it certifies public
-// clusters, and every trust set resolves it by default. It must never be
-// committed, printed into a log, or pasted into a file a repository can see.
+// clusters. It must never be committed, printed into a log, or pasted into a file
+// a repository can see. The public half is not embedded in isotope either — it is
+// pinned by the seeds and cluster configs that should accept public clusters, so
+// an offline cluster trusts exactly what an online one does.
 //
 //	seed42 init            # generate a keypair; prints both halves once
 //	seed42 certify ...     # sign a cluster certificate with the seed key
@@ -46,9 +48,10 @@ func usage() {
   seed42 certify -cluster ID  sign a cluster certificate with the seed key
                               reads $SEED42_PRIVATE_KEY (base64)
 
-After init, put the public half in isotope/seedroot.go (publicSeedKey) and the
-private half wherever public clusters are provisioned. The private half is never
-committed.
+After init, put the public half in the seeds and cluster configs that should accept
+public clusters (seed.json roots), and the private half in the operator's store.
+Nothing is embedded in isotope: an offline cluster has to trust the same set an
+online one does. The private half is never committed.
 `)
 	os.Exit(2)
 }
@@ -60,8 +63,8 @@ func initKey() {
 	}
 	fmt.Printf("public  %s\n", base64.StdEncoding.EncodeToString(pub))
 	fmt.Printf("private %s\n", base64.StdEncoding.EncodeToString(priv))
-	fmt.Println("\npublic  → isotope/seedroot.go:publicSeedKey")
-	fmt.Println("private → SEED42_PRIVATE_KEY (keychain/file), never a repository")
+	fmt.Println("\npublic  → the seeds and cluster configs that should accept public clusters")
+	fmt.Println("private → SEED42_PRIVATE_KEY (keychain/secret store), never a repository")
 }
 
 func certify(args []string) {

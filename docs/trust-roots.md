@@ -136,6 +136,33 @@ This is the right tool inside one administrative domain and the wrong tool
 across one: a third party cannot check a derived receipt without being given the
 derived key, so it does not replace a certificate, it scopes one.
 
+## A person is a root too
+
+A GitHub account publishes its SSH keys as `ssh-ed25519` lines at
+`https://github.com/<user>.keys`, and an ed25519 SSH key is an ed25519 key. So a
+person's published key pins as a root directly (`ParseSSHEd25519`,
+`ParseKeyList`), with no certificate authority, no seed and no conversion step.
+
+That makes the shortest honest test of this whole document a note and a key:
+
+```sh
+# once, on the machine that holds the private key
+ssh-keygen -Y sign -n lezz-note notes/today.md      # writes notes/today.md.sig
+
+# anywhere, offline, with only the published key
+curl -s https://github.com/james-gibson.keys > allowed_signers.body
+printf '%s %s\n' "github:james-gibson" "$(grep -m1 '^ssh-ed25519 ' allowed_signers.body | cut -d' ' -f1,2)" > allowed_signers
+ssh-keygen -Y verify -f allowed_signers -I github:james-gibson -n lezz-note -s notes/today.md.sig < notes/today.md
+```
+
+`Good "lezz-note" signature for github:james-gibson` is the whole trust model in
+one line: a root the operator pinned, an artifact it signed, and a decision made
+without the network. The same key can issue a cluster certificate
+(`SignCertificate(cert, personKey)`), so "my notes" and "my cluster" chain to one
+identity — which is what makes a personal root useful rather than decorative.
+
+`safe`: publishing a key is not a claim about what it may do. Pinning it is.
+
 ## What a verifier holds
 
 ```go

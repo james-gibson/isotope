@@ -58,6 +58,41 @@ registration can rise above the floor:
 | Attested, registry names this host:port, mDNS confirms the cluster | 6 — Certification |
 | Attested and registry-confirmed, mDNS did not confirm | 4 — Higher Authority |
 | Unattested, wrong secret, unknown cluster, or no matching registry entry | 2 — Harness Tools |
+
+Attestation comes in two schemes, and a verifier accepts either:
+
+| scheme | proof | who can verify |
+| --- | --- | --- |
+| `hmac-sha256` | shared secret (or a **derived subkey** handed to a child cluster) | only holders of that secret — verification implies the ability to mint |
+| `ed25519` | the cluster's signature plus its **certificate** | any verifier that pins the issuing root |
+
+The public base seed is **`seed-42`**: its public key is embedded in isotope, so a
+private trust set accepts public clusters without configuring anything, while the
+public side does not thereby trust the private one. Certificates carry a scope and
+an optional expiry, chain one hop (root → cluster → receipt), and a self-signed
+private root is valid only where its key is pinned. See
+[docs/trust-roots.md](docs/trust-roots.md) for the model, the reason each edge is
+directional, and why a root's key is provisioned out of band rather than
+discovered.
+
+```go
+// Ed25519: a certificate under a pinned root, and a receipt the cluster signs.
+cert, _ := isotope.SignCertificate(isotope.Certificate{
+    Cluster: "base-1", PublicKey: pub, Issuer: isotope.PublicSeedCluster,
+}, rootKey)
+att := isotope.SignReceiptEd25519(clusterKey, cert, endpoint, time.Now())
+
+verdict := isotope.VerifyRegistration(ctx, isotope.TrustConfig{
+    Roots: map[string]string{"home": privateRootPub},   // seed-42 is added automatically
+}, isotope.Registration{Endpoint: endpoint, Attestation: &att})
+
+// Symmetric: a parent scopes a child without handing over its own secret.
+child := isotope.DeriveClusterSecret(parentSecret, "home-kb")
+```
+
+`cmd/seed42` provisions the public root (`seed42 init`) and certifies a public
+cluster (`seed42 certify -cluster base-1`); the private half comes from
+`$SEED42_PRIVATE_KEY` and is never committed.
 | No registration | 0 — Absolute Zero |
 
 An mDNS miss costs the top rung and nothing else: a rolling restart looks exactly

@@ -1,6 +1,7 @@
 package isotope
 
 import (
+	"crypto/ed25519"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -30,8 +31,17 @@ type Attestation struct {
 	Cluster string `json:"cluster"`
 	// IssuedAt is when the receipt was signed, in Unix seconds.
 	IssuedAt int64 `json:"issued_at"`
+	// Scheme is how the receipt is proved. Empty means SchemeHMAC, so receipts
+	// minted before certificates existed keep verifying unchanged.
+	Scheme string `json:"scheme,omitempty"`
 	// MAC is base64url(HMAC-SHA256(secret, domain || cluster || endpoint || issuedAt)).
-	MAC string `json:"mac"`
+	// Set for SchemeHMAC.
+	MAC string `json:"mac,omitempty"`
+	// Signature is base64(ed25519 over the same fields) for SchemeEd25519.
+	Signature string `json:"signature,omitempty"`
+	// Cert is the cluster's certificate for SchemeEd25519: the one-hop chain from
+	// a pinned root to the key that signed this receipt.
+	Cert *Certificate `json:"cert,omitempty"`
 }
 
 // AttestationDomain separates this MAC from any other use of the same secret.
@@ -58,10 +68,57 @@ func SignAttestation(secret, cluster, endpoint string, now time.Time) Attestatio
 	}
 }
 
-// Verify checks the receipt against secret for endpoint, accepting IssuedAt
-// within skew of now. An empty secret never verifies: an alarm with no launch
+// Keyring is what a verifier holds: the roots it pins and the symmetric secrets
+// it knows (including derived subkeys handed to child clusters).
+//
+// Roots is deliberately naming-by-name rather than discovery: a key arrives out
+// of band — embedded for the public seed, pinned in configuration for a private
+// root — because reading a root from mDNS or the registry would rebuild
+// isotope#23 one level up.
+type Keyring struct {
+	// Roots maps an issuer name ("seed-42", or a private cluster's name) to its
+	// ed25519 public key. A self-signed private certificate is valid only when
+	// its own name is pinned here.
+	Roots map[string]ed25519.PublicKey
+	// Secrets maps a cluster name to its symmetric secret, including a derived
+	// subkey for a child cluster.
+	Secrets map[string]string
+}
+
+// VerifyWith checks the receipt for endpoint against a keyring, accepting
+// IssuedAt within skew of now. The scheme decides which half of the keyring is
+// used: a symmetric secret for SchemeHMAC, a pinned root for SchemeEd25519.
+func (a Attestation) VerifyWith(keyring Keyring, endpoint string, now time.Time, skew time.Duration) error {
+	switch a.EffectiveScheme() {
+	case SchemeEd25519:
+		return a.verifyEd25519(keyring, endpoint, now, skew)
+	default:
+		secret, ok := keyring.Secrets[a.Cluster]
+		if !ok {
+			return fmt.Errorf("%w: this alarm holds no secret for cluster %q", ErrAttestation, a.Cluster)
+		}
+		return a.Verify(secret, endpoint, now, skew)
+	}
+}
+
+// EffectiveScheme reports the receipt's scheme, treating an empty field as the
+// HMAC receipts minted before certificates existed.
+func (a Attestation) EffectiveScheme() string {
+	if a.Scheme == "" {
+		return SchemeHMAC
+	}
+	return a.Scheme
+}
+
+// Verify checks a scheme-HMAC receipt against secret for endpoint, accepting
+// IssuedAt within skew of now. An empty secret never verifies: an alarm with no
 // secret cannot attest anyone.
+//
+// Use VerifyWith for anything a keyring decides, including ed25519 receipts.
 func (a Attestation) Verify(secret, endpoint string, now time.Time, skew time.Duration) error {
+	if a.EffectiveScheme() != SchemeHMAC {
+		return fmt.Errorf("%w: %s receipts verify against a keyring, not a secret", ErrAttestation, a.EffectiveScheme())
+	}
 	if secret == "" {
 		return fmt.Errorf("%w: this alarm has no cluster secret configured", ErrAttestation)
 	}

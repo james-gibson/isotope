@@ -108,10 +108,16 @@ func advertisementFrom(e *zeroconf.ServiceEntry) Advertisement {
 // (against a registry on loopback and the real mDNS browser) — but it trusts no
 // cluster, so nothing rises above rung 2.
 type TrustConfig struct {
-	// Secrets maps cluster identity to the launch secret its members were given.
-	// A cluster that is not named here cannot be attested, whatever its registry
-	// says.
+	// Secrets maps cluster identity to the launch secret its members were given,
+	// including derived subkeys handed to child clusters. A symmetric cluster
+	// that is not named here cannot be attested, whatever its registry says.
 	Secrets map[string]string
+	// Roots maps a trust root's name to its ed25519 public key (base64). A
+	// certificate issued by a root named here is accepted, which is how a private
+	// cluster trusts another cluster's members without holding their secret.
+	// "seed-42" is added automatically when its public key is provisioned, so
+	// private clusters trust public ones by default (docs/trust-roots.md).
+	Roots map[string]string
 	// RegistryURL is the discovery registry to read. Empty means
 	// http://127.0.0.1:19100/cluster.
 	RegistryURL string
@@ -140,6 +146,17 @@ type TrustVerdict struct {
 // ladder below reads as the evidence it demands.
 func (v *TrustVerdict) explain(format string, args ...any) {
 	v.Reasons = append(v.Reasons, fmt.Sprintf(format, args...))
+}
+
+// keyring resolves the configuration into the roots and secrets a receipt is
+// checked against. The public seed is added here, once, so no call site has to
+// remember the default edge.
+func (c TrustConfig) keyring() (Keyring, error) {
+	roots, err := ParseRoots(c.Roots)
+	if err != nil {
+		return Keyring{}, err
+	}
+	return Keyring{Roots: roots, Secrets: c.Secrets}, nil
 }
 
 // VerifyTrust determines the initial 42i trust rung for a registering isotope.
@@ -180,20 +197,20 @@ func VerifyRegistration(ctx context.Context, cfg TrustConfig, reg Registration) 
 		verdict.explain("no attestation: %s is self-declared, and a registry entry is not evidence (isotope#23)", endpoint)
 		return verdict
 	}
-	secret, trusted := cfg.Secrets[att.Cluster]
-	if !trusted {
-		verdict.explain("cluster %q is not attested by this alarm", att.Cluster)
-		return verdict
-	}
 	now := time.Now()
 	if cfg.Now != nil {
 		now = cfg.Now()
 	}
-	if err := att.Verify(secret, endpoint, now, cfg.Skew); err != nil {
-		verdict.explain("attestation for cluster %q rejected: %v", att.Cluster, err)
+	keyring, err := cfg.keyring()
+	if err != nil {
+		verdict.explain("trust configuration is unusable: %v", err)
 		return verdict
 	}
-	verdict.explain("attested by cluster %q", att.Cluster)
+	if verifyErr := att.VerifyWith(keyring, endpoint, now, cfg.Skew); verifyErr != nil {
+		verdict.explain("attestation for cluster %q rejected: %v", att.Cluster, verifyErr)
+		return verdict
+	}
+	verdict.explain("attested by cluster %q (%s)", att.Cluster, att.EffectiveScheme())
 
 	// From here the evidence is proven to belong to a real cluster; presence in
 	// its directory is what raises the rung, and only for the endpoint it names.

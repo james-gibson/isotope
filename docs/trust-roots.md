@@ -214,13 +214,58 @@ follow, and each is tested:
   certificate (or a receipt), so a root's signature over a seed cannot be
   replayed as a grant.
 
-The signer is a `crypto.Signer`, not a private key: `-signer env` and
-`-signer file:PATH` are the shapes where the key is on the host, and a hardware
-slot is the same interface with the private half never leaving the device. For a
-YubiKey with firmware 5.7.0 or newer, PIV holds an Ed25519 key; the key is
-generated on-device, non-exportable, and the signature is byte-identical to the
-file-shaped key's, so a verifier cannot tell them apart. (The `pkcs11:` signer is
-not built yet; the seam and its tests are.)
+## Custody: the device is the authority, the issuer key signs
+
+The root key does not have to be the key that signs. The shape the lab uses:
+
+```
+YubiKey (authority)          seed issuer key              what verifiers pin
+  PIV slot, touch ───touch──▶ age/SOPS file ──decrypt──▶ ed25519  ──▶ "seed-42"
+                                                          │
+                                              signs bundles and cluster certs
+```
+
+- The **issuer key** is an ordinary ed25519 key whose public half is pinned as
+  `seed-42`. Nothing changes for a verifier.
+- Its private half is stored only encrypted — a SOPS file whose age recipient is
+  the YubiKey's PIV slot, with `--touch-policy always`. Reading it requires the
+  device and a physical touch; there is no unencrypted copy.
+- The **touch is the authorisation**: it is what turns custody into the ability
+  to sign. Once decrypted, the key is in memory and the YubiKey can be unplugged.
+
+```sh
+# once: an age identity on a PIV slot that demands a touch for every unwrap
+age-plugin-yubikey --generate --slot 9a --touch-policy always --pin-policy once
+export SOPS_AGE_KEY_CMD=age-plugin-yubikey
+
+# the issuer key, encrypted at rest (a dotenv or a raw base64 value)
+sops -e seed-issuer.key > seed-issuer.enc.yaml
+
+# unlock once: the touch happens here, not per signature
+seed42 agent -in sops:seed-issuer.enc.yaml -idle 15m
+
+# from another shell, with the YubiKey unplugged
+seed42 public -signer agent:/tmp/seed42-501.sock      # what to pin
+seed42 sign   -signer agent:/tmp/seed42-501.sock -in seed.json.enc
+seed42 certify -signer agent:/tmp/seed42-501.sock -cluster base-1
+```
+
+`seed42 agent` holds the unlocked key in memory only, listens on a `0600` unix
+socket, and exposes exactly two operations — sign a certificate, sign a bundle.
+It never offers raw signing, because a root that signs arbitrary bytes can be
+turned into anything by whoever can reach the socket. It closes after `-idle`
+without a request, and removing the socket does not take the key with it.
+
+**What this does and does not prove.** The device is the authority *operationally*:
+no touch, no issuer key, no signature. A verifier cannot see that, because it pins
+the issuer key and the signature is ordinary ed25519. Making the device the
+verifier-visible authority means the YubiKey signing a delegation over the issuer's
+public key, which turns the chain into root → issuer → cluster; `docs/trust-roots.md`
+keeps the chain one hop on purpose, so that is a decision, not a detail.
+
+Without a YubiKey — or on a host that has to sign unattended — the same issuer key
+can be unlocked by `-signer file:PATH` or `-signer env`, both of which are strictly
+weaker: the key is on the host, and only the file mode protects it.
 
 ## What a verifier holds
 

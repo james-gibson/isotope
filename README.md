@@ -95,9 +95,11 @@ verdict := isotope.VerifyRegistration(ctx, isotope.TrustConfig{
 child := isotope.DeriveClusterSecret(parentSecret, "home-kb")
 ```
 
-`cmd/seed42` provisions the public root (`seed42 init`) and certifies a public
-cluster (`seed42 certify -cluster base-1`); the private half comes from
-`$SEED42_PRIVATE_KEY` and is never committed.
+`cmd/seed42` provisions the public root (`seed42 init`), certifies a public
+cluster (`seed42 certify -cluster base-1`), and signs a seed bundle
+(`seed42 sign -in seed.json.enc`, verified offline with `seed42 verify`). The
+private half comes from `$SEED42_PRIVATE_KEY` or `-signer file:PATH` and is never
+committed; a hardware slot fits the same `crypto.Signer` seam.
 | No registration | 0 — Absolute Zero |
 
 An mDNS miss costs the top rung and nothing else: a rolling restart looks exactly

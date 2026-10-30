@@ -184,6 +184,44 @@ that needs a signature that *should* be refused generates a fresh key instead �
 burned one is for the positive path, so its fingerprint is asserted rather than
 regenerated.
 
+## Seed bundles: the root signs what travels
+
+A seed is a declaration of what a workspace pins — roots, certificates, and the
+material a cluster needs to come up. It has to work **online and offline**, and on
+a host that may not be able to decrypt it: the same bytes have to be verifiable
+before anything is decrypted, and without the network.
+
+So the root signs the bytes as distributed, not the plaintext inside:
+
+```sh
+sops -e seed.json > seed.json.enc        # confidentiality (age/SOPS, recipients decide)
+seed42 sign -in seed.json.enc            # authenticity (the pinned root)
+seed42 verify -in seed.json.enc -pub @seed-42.pub
+```
+
+`SignSeedBundle` produces a detached `BundleSignature` — issuer, timestamp, the
+SHA-256 of the body, and an ed25519 signature over
+`isotope-seed-bundle-v1 || issuer || created_at || digest`. Three properties
+follow, and each is tested:
+
+- **A verifier needs only the pinned public key.** No registry, no age identity,
+  no decryption. That is what makes an offline cluster's trust equal to an online
+  one's: the bundle is evidence whether or not anyone can read inside it.
+- **The ciphertext is the artifact.** One changed byte fails verification before
+  an age key is involved, so SOPS' own MAC and the root's signature cover the same
+  bytes from two directions.
+- **The domains do not mix.** A seed-bundle signature cannot verify as a
+  certificate (or a receipt), so a root's signature over a seed cannot be
+  replayed as a grant.
+
+The signer is a `crypto.Signer`, not a private key: `-signer env` and
+`-signer file:PATH` are the shapes where the key is on the host, and a hardware
+slot is the same interface with the private half never leaving the device. For a
+YubiKey with firmware 5.7.0 or newer, PIV holds an Ed25519 key; the key is
+generated on-device, non-exportable, and the signature is byte-identical to the
+file-shaped key's, so a verifier cannot tell them apart. (The `pkcs11:` signer is
+not built yet; the seam and its tests are.)
+
 ## What a verifier holds
 
 ```go

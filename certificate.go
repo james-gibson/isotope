@@ -1,8 +1,10 @@
 package isotope
 
 import (
+	"crypto"
 	"crypto/ed25519"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -56,17 +58,42 @@ const certificateDomain = "isotope-cluster-cert-v1"
 // SignCertificate issues a cluster certificate. issuerKey is the private key of
 // the issuer named in the certificate: a root's key, or the cluster's own for a
 // private root.
+//
+// The key is material, so it has to be somewhere: use SignCertificateWith when
+// the root lives on a device and never leaves it.
 func SignCertificate(cert Certificate, issuerKey ed25519.PrivateKey) (Certificate, error) {
+	if len(issuerKey) != ed25519.PrivateKeySize {
+		return Certificate{}, fmt.Errorf("issuer key has length %d, want %d", len(issuerKey), ed25519.PrivateKeySize)
+	}
+	return SignCertificateWith(cert, issuerKey)
+}
+
+// SignCertificateWith issues a cluster certificate using a signer rather than an
+// in-memory private key.
+//
+// It produces the same signature over the same bytes as SignCertificate, so a
+// verifier cannot tell whether the root was a file, a PKCS#11 slot, an SSH agent
+// or a TPM; what changes is that a hardware signer never releases the private
+// half. crypto.Signer is the seam every one of those speaks, and for Ed25519 the
+// signer must sign the message itself (opts is Hash(0)).
+func SignCertificateWith(cert Certificate, signer crypto.Signer) (Certificate, error) {
 	if cert.Cluster == "" {
 		return Certificate{}, errors.New("certificate needs a cluster")
 	}
 	if cert.Issuer == "" {
 		return Certificate{}, errors.New("certificate needs an issuer")
 	}
-	if len(issuerKey) != ed25519.PrivateKeySize {
-		return Certificate{}, fmt.Errorf("issuer key has length %d, want %d", len(issuerKey), ed25519.PrivateKeySize)
+	if signer == nil {
+		return Certificate{}, errors.New("certificate needs a signer")
 	}
-	cert.Signature = base64.StdEncoding.EncodeToString(ed25519.Sign(issuerKey, cert.marshal()))
+	sig, err := signer.Sign(rand.Reader, cert.marshal(), crypto.Hash(0))
+	if err != nil {
+		return Certificate{}, fmt.Errorf("sign certificate: %w", err)
+	}
+	if len(sig) != ed25519.SignatureSize {
+		return Certificate{}, fmt.Errorf("signer returned a %d-byte signature, want %d", len(sig), ed25519.SignatureSize)
+	}
+	cert.Signature = base64.StdEncoding.EncodeToString(sig)
 	return cert, nil
 }
 

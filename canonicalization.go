@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -55,6 +56,25 @@ var keywordMap = map[string]GherkinKeyword{
 	"そして":   KeywordAnd,
 	"しかし":   KeywordBut,
 }
+
+// stepKeywords lists every keyword in keywordMap longest-first, with a lexical
+// tie-break. Matching must not depend on Go's randomized map iteration order:
+// "Étant donné" is a prefix of "Étant donnée", so the short keyword can eat the
+// final "e" of the long one and yield a different step text, and therefore a
+// different isotope, from one process to the next.
+var stepKeywords = func() []string {
+	kws := make([]string, 0, len(keywordMap))
+	for kw := range keywordMap {
+		kws = append(kws, kw)
+	}
+	sort.Slice(kws, func(i, j int) bool {
+		if len(kws[i]) != len(kws[j]) {
+			return len(kws[i]) > len(kws[j])
+		}
+		return kws[i] < kws[j]
+	})
+	return kws
+}()
 
 // Step represents a single Gherkin step.
 type Step struct {
@@ -149,8 +169,11 @@ func extractName(line string) string {
 }
 
 // extractStep extracts keyword and text from a step line.
+//
+// The keyword list is ordered, not map-derived: the longest matching keyword
+// wins, so the parse is the same in every process (#18).
 func extractStep(line string) (keyword, text string) {
-	for kw := range keywordMap {
+	for _, kw := range stepKeywords {
 		if strings.HasPrefix(line, kw) {
 			remaining := strings.TrimPrefix(line, kw)
 			remaining = strings.TrimSpace(remaining)

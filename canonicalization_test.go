@@ -324,3 +324,45 @@ Feature: User authentication
 		t.Errorf("Expected 2 scenarios, got %d", len(ast.Features[0].Scenarios))
 	}
 }
+
+// TestStepKeywordMatchingIsDeterministic pins #18. "Étant donné" is a prefix of
+// "Étant donnée", and extractStep used to iterate keywordMap directly, so Go's
+// randomized map order chose the winner per process: the short keyword ate the
+// final "e" and the same file produced two different isotopes. The longest
+// keyword must win, every run.
+func TestStepKeywordMatchingIsDeterministic(t *testing.T) {
+	const gherkin = "Feature: f\nScenario: s\nÉtant donnée une chose\n"
+	key := []byte("test-fire-marshal-key")
+
+	var wantIsotope, wantStream string
+	for i := 0; i < 100; i++ {
+		ast, err := ParseGherkin(gherkin)
+		if err != nil {
+			t.Fatalf("run %d: ParseGherkin: %v", i, err)
+		}
+
+		step := ast.Features[0].Scenarios[0].Steps[0]
+		if step.Keyword != KeywordGiven {
+			t.Fatalf("run %d: keyword = %q, want GIVEN", i, step.Keyword)
+		}
+		if step.Text != "une chose" {
+			t.Fatalf("run %d: text = %q, want %q (the short keyword ate the final e)",
+				i, step.Text, "une chose")
+		}
+
+		iso, err := CanonicalizeGherkinToIsotope(gherkin, key, "iso-fr", 1)
+		if err != nil {
+			t.Fatalf("run %d: CanonicalizeGherkinToIsotope: %v", i, err)
+		}
+		if i == 0 {
+			wantIsotope, wantStream = iso.String(), iso.Raw
+			continue
+		}
+		if iso.String() != wantIsotope {
+			t.Fatalf("run %d: isotope = %s, want %s", i, iso.String(), wantIsotope)
+		}
+		if iso.Raw != wantStream {
+			t.Fatalf("run %d: stream = %q, want %q", i, iso.Raw, wantStream)
+		}
+	}
+}

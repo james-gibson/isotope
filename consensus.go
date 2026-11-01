@@ -37,9 +37,14 @@ type QuorumStatus struct {
 	ByzantineCount  int       // Number of failures tolerated (F = (N-1)/3)
 }
 
-// VerifyAgreement checks if enough alarms agree on the same isotope.
-// Implements Byzantine Fault Tolerance: N >= 3F+1 alarms can tolerate F failures.
-func VerifyAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus {
+// groupAgreement groups reports by the isotope they carry (its canonical Raw)
+// and reports the largest agreeing set. Implements Byzantine Fault Tolerance:
+// N >= 3F+1 alarms can tolerate F failures.
+//
+// It does not verify the isotope it groups on, so it is unexported: agreement
+// over an unverified report is agreement over whatever the reporter wrote
+// (isotope#20). VerifyConsensus is the exported path.
+func groupAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus {
 	if len(reports) == 0 {
 		return QuorumStatus{
 			ConsensusFormed: false,
@@ -49,11 +54,14 @@ func VerifyAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus
 		}
 	}
 
-	// Count isotopes by signature (two reports with same signature = same isotope)
+	// Group by what was signed, not by who signed it: two alarms with their own
+	// keys sign the same isotope to different signatures, so grouping on the
+	// signature would place every alarm in its own group and no consensus could
+	// ever form (isotope#20).
 	isotopeGroups := make(map[string][]ConsensusReport)
 	for _, report := range reports {
-		sig := report.Isotope.Signature
-		isotopeGroups[sig] = append(isotopeGroups[sig], report)
+		raw := report.Isotope.Raw
+		isotopeGroups[raw] = append(isotopeGroups[raw], report)
 	}
 
 	// Find the largest agreement group
@@ -93,6 +101,19 @@ func VerifyAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus
 		ConsensusFormed: consensusFormed,
 		ByzantineCount:  byzantineCount,
 	}
+}
+
+// VerifyConsensus verifies every report's signature, then evaluates agreement.
+//
+// It is the only exported way to form consensus. A ConsensusFormed verdict is
+// a statement about authenticity, so it cannot be produced without the keys
+// that check the signatures it rests on: a caller that supplies no keys gets
+// no verdict (isotope#20).
+func VerifyConsensus(reports []ConsensusReport, alarmSigningKeys map[AlarmID][]byte, requiredQuorum int) (QuorumStatus, error) {
+	if err := VerifyConsensusSignatures(reports, alarmSigningKeys); err != nil {
+		return QuorumStatus{}, err
+	}
+	return groupAgreement(reports, requiredQuorum), nil
 }
 
 // VerifyConsensusSignatures verifies that each report's signature is cryptographically valid.
@@ -213,13 +234,19 @@ func TestIsotopeVariation(isotope1, isotope2 Isotope, shouldMatch bool) bool {
 }
 
 // TestAgreementPattern verifies that multiple alarms report same isotope.
-func TestAgreementPattern(reports []ConsensusReport) bool {
+//
+// Reports are verified first: a pattern over an unverified set says nothing
+// about agreement (isotope#20).
+func TestAgreementPattern(reports []ConsensusReport, alarmSigningKeys map[AlarmID][]byte) (bool, error) {
 	if len(reports) < 3 {
-		return false // Need at least 3 alarms for Byzantine tolerance
+		return false, nil // Need at least 3 alarms for Byzantine tolerance
 	}
 
-	status := VerifyAgreement(reports, 2) // Require 2/3 agreement
-	return status.ConsensusFormed && len(status.Outliers) <= 1
+	status, err := VerifyConsensus(reports, alarmSigningKeys, 2)
+	if err != nil {
+		return false, err
+	}
+	return status.ConsensusFormed && len(status.Outliers) <= 1, nil
 }
 
 // TestDeclarativeBehaviorCompliance verifies declared behavior is observed.
@@ -229,22 +256,28 @@ func TestDeclarativeBehaviorCompliance(isotope Isotope, observed bool) bool {
 	return observed
 }
 
-// DetectCompromisedAlarm identifies an alarm that disagrees with consensus.
-// Returns the alarm ID if one is clearly an outlier.
-func DetectCompromisedAlarm(reports []ConsensusReport, requiredQuorum int) *AlarmID {
-	status := VerifyAgreement(reports, requiredQuorum)
+// DetectCompromisedAlarm identifies an alarm that disagrees with a verified
+// consensus. Returns the alarm ID if one is clearly an outlier.
+//
+// Reports are verified first: an outlier verdict over an unverified set says
+// nothing about compromise (isotope#20).
+func DetectCompromisedAlarm(reports []ConsensusReport, alarmSigningKeys map[AlarmID][]byte, requiredQuorum int) (*AlarmID, error) {
+	status, err := VerifyConsensus(reports, alarmSigningKeys, requiredQuorum)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(status.Outliers) == 1 {
 		// Single outlier is suspicious
-		return &status.Outliers[0]
+		return &status.Outliers[0], nil
 	}
 
 	if len(status.Outliers) > 1 && len(status.Outliers) <= (len(reports)/3) {
 		// Multiple outliers but within Byzantine tolerance (F = N/3)
 		// This is recoverable; consensus still valid
-		return nil
+		return nil, nil
 	}
 
 	// No clear outlier pattern
-	return nil
+	return nil, nil
 }

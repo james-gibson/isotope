@@ -31,6 +31,10 @@ func NewDevModeSimulator(alarmCount int) *DevModeSimulator {
 
 // SimulateTest runs a test across all simulated alarms and checks consensus.
 // Returns whether consensus formed and which alarms agreed.
+//
+// The simulated alarms share no signing key, so this groups their reports
+// rather than verifying them: a simulated ConsensusFormed is a statement about
+// the grouping only. Reports from real alarms go through VerifyConsensus.
 func (dms *DevModeSimulator) SimulateTest(testIsotope Isotope, passed bool) (ConsensusResult, error) {
 	now := time.Now()
 
@@ -64,7 +68,7 @@ func (dms *DevModeSimulator) SimulateTest(testIsotope Isotope, passed bool) (Con
 		quorumSize = 1
 	}
 
-	status := VerifyAgreement(dms.Results, quorumSize)
+	status := groupAgreement(dms.Results, quorumSize)
 
 	return ConsensusResult{
 		TestIsotope:       testIsotope,

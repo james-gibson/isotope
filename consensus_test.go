@@ -1,10 +1,36 @@
 package isotope
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 )
+
+// testKeys gives every named alarm a distinct signing key.
+func testKeys(alarms ...AlarmID) map[AlarmID][]byte {
+	keys := make(map[AlarmID][]byte, len(alarms))
+	for _, a := range alarms {
+		keys[a] = []byte("test-key-" + string(a))
+	}
+	return keys
+}
+
+// signAll recomputes each report's signature over its own Raw with the alarm's
+// key, so a fixture can be fed to the verified path.
+func signAll(reports []ConsensusReport, keys map[AlarmID][]byte) []ConsensusReport {
+	out := make([]ConsensusReport, len(reports))
+	for i, r := range reports {
+		h := hmac.New(sha256.New, keys[r.AlarmID])
+		h.Write([]byte(r.Isotope.Raw))
+		r.Isotope.Signature = hex.EncodeToString(h.Sum(nil))
+		out[i] = r
+	}
+	return out
+}
 
 func TestAgreementThreeAlarms(t *testing.T) {
 	// All three alarms report same isotope
@@ -36,7 +62,11 @@ func TestAgreementThreeAlarms(t *testing.T) {
 		},
 	}
 
-	status := VerifyAgreement(reports, 2) // Require 2/3 agreement
+	keys := testKeys("alarm-a", "alarm-b", "alarm-c")
+	status, err := VerifyConsensus(signAll(reports, keys), keys, 2) // Require 2/3 agreement
+	if err != nil {
+		t.Fatalf("VerifyConsensus: %v", err)
+	}
 
 	if !status.ConsensusFormed {
 		t.Error("Expected consensus to form with 3/3 alarms agreeing")
@@ -64,7 +94,7 @@ func TestIsotopeDisagreementDetection(t *testing.T) {
 		Family:    "iso-login",
 		Version:   1,
 		Signature: "wrongwrongwrongwrong",
-		Raw:       "FEATURE:name:user-auth\nSCENARIO:name:valid-login",
+		Raw:       "FEATURE:name:user-auth\nSCENARIO:name:invalid-login",
 	}
 
 	reports := []ConsensusReport{
@@ -73,7 +103,11 @@ func TestIsotopeDisagreementDetection(t *testing.T) {
 		{AlarmID: "alarm-c", Isotope: isotope2, Timestamp: time.Now()}, // Disagreer
 	}
 
-	status := VerifyAgreement(reports, 2)
+	keys := testKeys("alarm-a", "alarm-b", "alarm-c")
+	status, err := VerifyConsensus(signAll(reports, keys), keys, 2)
+	if err != nil {
+		t.Fatalf("VerifyConsensus: %v", err)
+	}
 
 	if !status.ConsensusFormed {
 		t.Error("Consensus should form with 2/3 agreement")
@@ -117,7 +151,11 @@ func TestByzantineToleranceFiveAlarms(t *testing.T) {
 		{AlarmID: "alarm-e", Isotope: isotope2, Timestamp: time.Now()}, // Compromised
 	}
 
-	status := VerifyAgreement(reports, 3) // Require 3/5 quorum
+	keys := testKeys("alarm-a", "alarm-b", "alarm-c", "alarm-d", "alarm-e")
+	status, err := VerifyConsensus(signAll(reports, keys), keys, 3) // Require 3/5 quorum
+	if err != nil {
+		t.Fatalf("VerifyConsensus: %v", err)
+	}
 
 	if !status.ConsensusFormed {
 		t.Error("Consensus should form with 4/5 alarms agreeing")
@@ -145,7 +183,11 @@ func TestConsensusRequiresQuorum(t *testing.T) {
 		{AlarmID: "alarm-b", Isotope: isotope, Timestamp: time.Now()},
 	}
 
-	status := VerifyAgreement(reports, 3) // Require 3 alarms
+	keys := testKeys("alarm-a", "alarm-b")
+	status, err := VerifyConsensus(signAll(reports, keys), keys, 3) // Require 3 alarms
+	if err != nil {
+		t.Fatalf("VerifyConsensus: %v", err)
+	}
 
 	if status.ConsensusFormed {
 		t.Error("Consensus should not form with only 2 alarms (quorum=3)")
@@ -206,7 +248,11 @@ func TestDetectCompromisedAlarm(t *testing.T) {
 		{AlarmID: "alarm-c", Isotope: isotope2, Timestamp: time.Now()}, // Compromised
 	}
 
-	compromised := DetectCompromisedAlarm(reports, 2)
+	keys := testKeys("alarm-a", "alarm-b", "alarm-c")
+	compromised, err := DetectCompromisedAlarm(signAll(reports, keys), keys, 2)
+	if err != nil {
+		t.Fatalf("DetectCompromisedAlarm: %v", err)
+	}
 	if compromised == nil {
 		t.Error("Should detect compromised alarm")
 	} else if *compromised != "alarm-c" {
@@ -274,7 +320,12 @@ func TestAgreementPatternPredicate(t *testing.T) {
 		{AlarmID: "c", Isotope: isotope2},
 	}
 
-	if !TestAgreementPattern(reports) {
+	keys := testKeys("a", "b", "c")
+	ok, err := TestAgreementPattern(signAll(reports, keys), keys)
+	if err != nil {
+		t.Fatalf("TestAgreementPattern: %v", err)
+	}
+	if !ok {
 		t.Error("AgreementPattern should detect 2/3 consensus")
 	}
 
@@ -285,7 +336,11 @@ func TestAgreementPatternPredicate(t *testing.T) {
 		{AlarmID: "c", Isotope: isotope2},
 	}
 
-	if !TestAgreementPattern(reports2) {
+	ok, err = TestAgreementPattern(signAll(reports2, keys), keys)
+	if err != nil {
+		t.Fatalf("TestAgreementPattern: %v", err)
+	}
+	if !ok {
 		t.Error("AgreementPattern should accept 2/3 consensus (even if different isotopes)")
 	}
 
@@ -295,7 +350,11 @@ func TestAgreementPatternPredicate(t *testing.T) {
 		{AlarmID: "b", Isotope: isotope1},
 	}
 
-	if TestAgreementPattern(reports3) {
+	ok, err = TestAgreementPattern(signAll(reports3, keys), keys)
+	if err != nil {
+		t.Fatalf("TestAgreementPattern: %v", err)
+	}
+	if ok {
 		t.Error("AgreementPattern should reject <3 alarms")
 	}
 }
@@ -372,5 +431,35 @@ func TestVerifyConsensusSignaturesMalformed(t *testing.T) {
 				t.Fatalf("error = %q, want it to mention %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// TestVerifyConsensusRejectsForgedAgreement is isotope#20: three reports that
+// copy one signature string formed consensus, because agreement grouped on a
+// field nobody verified. VerifyConsensus checks first, so the set is rejected
+// and no ConsensusFormed verdict is returned.
+func TestVerifyConsensusRejectsForgedAgreement(t *testing.T) {
+	keys := testKeys("alarm-1", "alarm-2", "alarm-3")
+
+	forged := make([]ConsensusReport, 3)
+	for i := range forged {
+		forged[i] = ConsensusReport{
+			AlarmID:   AlarmID(fmt.Sprintf("alarm-%d", i+1)),
+			Isotope:   Isotope{Family: "f", Version: 1, Raw: "FEATURE:name:f", Signature: "forged"},
+			Signature: "forged",
+			Timestamp: time.Now(),
+		}
+	}
+
+	status, err := VerifyConsensus(forged, keys, 2)
+	if err == nil {
+		t.Fatalf("forged agreement accepted: %+v", status)
+	}
+	if status.ConsensusFormed {
+		t.Fatal("a rejected set must not carry a ConsensusFormed verdict")
+	}
+
+	if _, err := DetectCompromisedAlarm(forged, keys, 2); err == nil {
+		t.Fatal("DetectCompromisedAlarm accepted a forged set")
 	}
 }

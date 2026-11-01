@@ -3,6 +3,7 @@ package isotope
 import (
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 )
@@ -96,6 +97,11 @@ func VerifyAgreement(reports []ConsensusReport, requiredQuorum int) QuorumStatus
 
 // VerifyConsensusSignatures verifies that each report's signature is cryptographically valid.
 // Returns error if any signature is invalid.
+//
+// The signature is peer-supplied, so it is validated before it is used: a
+// malformed or short value is rejected, never sliced (isotope#17, isotope#19).
+// The comparison is hmac.Equal over decoded bytes, so it is constant-time and
+// the error path leaks neither a prefix nor a timing signal.
 func VerifyConsensusSignatures(reports []ConsensusReport, alarmSigningKeys map[AlarmID][]byte) error {
 	for _, report := range reports {
 		key, ok := alarmSigningKeys[report.AlarmID]
@@ -106,11 +112,16 @@ func VerifyConsensusSignatures(reports []ConsensusReport, alarmSigningKeys map[A
 		// Recompute HMAC of the isotope raw canonical form
 		h := hmac.New(sha256.New, key)
 		h.Write([]byte(report.Isotope.Raw))
-		expectedSig := fmt.Sprintf("%x", h.Sum(nil))
+		expected := h.Sum(nil)
 
-		if expectedSig != report.Isotope.Signature {
-			return fmt.Errorf("signature mismatch for alarm %s: expected %s, got %s",
-				report.AlarmID, expectedSig[:16], report.Isotope.Signature[:16])
+		got, err := hex.DecodeString(report.Isotope.Signature)
+		if err != nil || len(got) != len(expected) {
+			return fmt.Errorf("malformed signature for alarm %s: %d chars, want %d hex chars",
+				report.AlarmID, len(report.Isotope.Signature), hex.EncodedLen(len(expected)))
+		}
+
+		if !hmac.Equal(expected, got) {
+			return fmt.Errorf("signature mismatch for alarm %s", report.AlarmID)
 		}
 	}
 	return nil

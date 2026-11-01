@@ -1,6 +1,7 @@
 package isotope
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -324,5 +325,52 @@ func TestConsensusReporter(t *testing.T) {
 
 	if report.Timestamp.IsZero() {
 		t.Error("Report should have valid timestamp")
+	}
+}
+
+// TestVerifyConsensusSignaturesMalformed pins isotope#17/#19: the signature is
+// peer-supplied, so a short, odd, non-hex or wrong-length value must be
+// rejected — not sliced into a panic. A well-formed but wrong signature is a
+// mismatch; every malformed shape is a malformed signature.
+func TestVerifyConsensusSignaturesMalformed(t *testing.T) {
+	key := []byte("seed-42")
+	alarm := AlarmID("alarm-1")
+	keys := map[AlarmID][]byte{alarm: key}
+
+	good := GenerateIsotope(
+		[]CanonicalToken{{Type: "FEATURE", Key: "name", Value: "f"}},
+		key, "iso-test", 1,
+	).Signature
+
+	cases := []struct {
+		name string
+		sig  string
+		want string
+	}{
+		{"valid", good, ""},
+		{"empty", "", "malformed"},
+		{"three chars", "abc", "malformed"},
+		{"short hex", "deadbeef", "malformed"},
+		{"odd length", good[:63], "malformed"},
+		{"non-hex", good[:62] + "zz", "malformed"},
+		{"wrong but well-formed", strings.Repeat("a", len(good)), "mismatch"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reports := []ConsensusReport{{AlarmID: alarm, Isotope: Isotope{Raw: "FEATURE:name:f", Signature: tc.sig}}}
+			err := VerifyConsensusSignatures(reports, keys)
+
+			switch {
+			case tc.want == "" && err != nil:
+				t.Fatalf("valid signature rejected: %v", err)
+			case tc.want == "":
+				return
+			case err == nil:
+				t.Fatalf("%q was accepted", tc.sig)
+			case !strings.Contains(err.Error(), tc.want):
+				t.Fatalf("error = %q, want it to mention %q", err, tc.want)
+			}
+		})
 	}
 }

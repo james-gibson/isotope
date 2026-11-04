@@ -1,3 +1,4 @@
+# family: deployment
 # The UDP ingestion service (api/src/message-bus/udpService.ts) — a member of
 # the message-bus module mounted ONLY by the admin app (3002). Sensor datagrams
 # arrive encrypted; the key is derived from SENSOR_API_KEY (name only).

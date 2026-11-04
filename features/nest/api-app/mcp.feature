@@ -1,3 +1,4 @@
+# family: deployment
 # The MCP bridge (api/src/webhook/mcp/): McpController, McpService,
 # SessionStore. Mounted on the main app (3001) via the webhook module.
 # MCP protocol version 2025-11-25.

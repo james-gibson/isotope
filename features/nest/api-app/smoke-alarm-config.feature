@@ -1,3 +1,4 @@
+# family: deployment
 # The smoke-alarm config service (api/src/smoke-alarm/), evaluated through
 # OpenFeature. Mounted on the main app (3001) and the auth app (3003).
 # Sources: api/src/smoke-alarm/smoke-alarm-config.controller.ts,

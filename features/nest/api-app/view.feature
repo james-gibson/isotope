@@ -1,3 +1,4 @@
+# family: deployment
 # The view service (api/src/view/).
 # Mounted on the main app (3001). The 5-minute expire-unclaimed-views cron
 # (view.cron.ts) is defined but registered nowhere — dead code.

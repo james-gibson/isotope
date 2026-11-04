@@ -1,3 +1,4 @@
+# family: deployment
 # The auth app (AuthModule, port 3003) — a separate, minimal Nest app booted
 # by the main entrypoint. The auth SERVICE behaviours (guard, tokens) are
 # captured in api-app/auth.feature; this file is the app's surface only.

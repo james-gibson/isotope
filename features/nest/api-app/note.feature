@@ -1,3 +1,4 @@
+# family: deployment
 # The note service (api/src/note/): NoteResolver + NoteService.
 # Mounted on the main app (3001) and the admin app (3002).
 # Sources: api/src/note/note.resolver.ts, api/src/note/note.service.ts,

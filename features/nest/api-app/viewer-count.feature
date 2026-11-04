@@ -1,3 +1,4 @@
+# family: deployment
 # The viewer-count service (api/src/viewer-count/).
 # Mounted on the main app (3001). registerAuth is the CLI's login flow — see
 # cli/cli.feature.

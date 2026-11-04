@@ -1,3 +1,4 @@
+# family: deployment
 # The game-client service (api/src/game-client/): GameClientService +
 # GameSession (outbound client of a local game server) and the mounted but
 # empty GameClientController. Mounted on the main app (3001) and admin app

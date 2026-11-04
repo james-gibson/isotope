@@ -1,3 +1,4 @@
+# family: deployment
 # The message bus (api/src/message-bus/): PingCronService, PingController,
 # StreamService, RoutingService (empty stub). Mounted on the main app (3001)
 # and the runtime app (6001); the admin app registers none of it.

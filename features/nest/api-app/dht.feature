@@ -1,3 +1,4 @@
+# family: deployment
 # The DHT service (api/src/dht/): the Pegasus module — MagnetService,
 # MagnetService, PegasusService + PegasusController.
 # Mounted on the main app (3001) and the runtime app (6001). This is the

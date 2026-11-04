@@ -1,3 +1,4 @@
+# family: deployment
 # The solaredge service (api/src/solaredge/): SolarEdgeCronService —
 # registered in AppModule but every @Cron poll is commented out, so nothing
 # ever fires. SolarEdgeService (the empty shell) is registered nowhere.

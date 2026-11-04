@@ -1,3 +1,4 @@
+# family: deployment
 # Capture of the website build pipeline (ui/).
 # Sources: ui/package.json, ui/.lemonseed/index.mjs, ui/src/vite.config.ts,
 # ui/postbuild.sh, ui/src/personality/*.md, README.md (repo root, rsync deploy),

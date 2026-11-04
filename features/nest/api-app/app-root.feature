@@ -1,3 +1,4 @@
+# family: deployment
 # The main app's own root controller and service.
 # Sources: api/src/app.controller.ts, api/src/app.service.ts,
 # api/test/app.e2e-spec.ts (the only e2e assertion in the api).

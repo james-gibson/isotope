@@ -1,3 +1,4 @@
+# family: deployment
 # The otel service (api/src/otel/): OtelModule -> HoneycombModule, loaded by
 # the side-effect import in api/src/bootstrap.ts that every entrypoint pulls
 # in before Nest starts. Env var NAMES only: HONEYCOMB_API_KEY,

@@ -1,3 +1,4 @@
+# family: deployment
 # The api main entrypoint (api/src/main.ts) — not a NestJS service itself, but
 # the fact that makes the per-service split real: one entrypoint boots three
 # separate Nest apps. Each app's services are captured in their own feature

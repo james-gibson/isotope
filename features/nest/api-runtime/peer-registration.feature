@@ -1,3 +1,4 @@
+# family: deployment
 # The peer-registration service (api/src/peer-registration/), mounted by the
 # runtime app (6001). Tokens are uuid-based, expire after 5 minutes and are
 # single-use; claims attach an RSA public key; data is verified RSA-SHA256.

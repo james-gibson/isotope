@@ -1,3 +1,4 @@
+# family: deployment
 # The pull-requests service (api/src/pull-requests/).
 # Mounted on the main app (3001). Reads a saved GitHub GraphQL search
 # response — no live GitHub call is made.

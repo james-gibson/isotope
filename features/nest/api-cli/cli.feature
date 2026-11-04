@@ -1,3 +1,4 @@
+# family: deployment
 # Capture of the api CLI (api/src/cli.ts, commander) — a client of the
 # GraphQL api, not part of any server app.
 # Sources: api/src/cli.ts.

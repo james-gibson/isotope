@@ -1,3 +1,4 @@
+# family: deployment
 # The admin app (AdminModule, port 3002) — a separate Nest app booted by the
 # main entrypoint, not a route prefix on the main app. Its services are
 # captured in their own files: the note surface (api-app/note.feature), the

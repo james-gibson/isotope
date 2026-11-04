@@ -1,3 +1,4 @@
+# family: deployment
 # The user service (api/src/user/).
 # Mounted on the main app (3001) and the runtime app (6001).
 # Sources: api/src/user/user.resolver.ts, api/prisma/schema.prisma (model User).

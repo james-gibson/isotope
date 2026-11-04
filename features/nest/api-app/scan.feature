@@ -1,3 +1,4 @@
+# family: deployment
 # The scan service (api/src/scan/): ScanResolver + ScanService, registered via
 # the webhook module's providers — main app (3001) only.
 # Sources: api/src/scan/scan.resolver.ts, api/src/scan/scan.service.ts,

@@ -1,3 +1,4 @@
+# family: deployment
 # The authn service (api/src/authn/).
 # Sources: api/src/authn/authn.controller.ts.
 # AuthNController is mounted by all four apps (3001, 3002, 3003, 6001). The

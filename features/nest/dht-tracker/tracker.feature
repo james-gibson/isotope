@@ -1,3 +1,4 @@
+# family: deployment
 # Capture of the standalone BitTorrent-style tracker prototype served by the
 # repo-root package (npm run tracker|client|monitor -> node dist/cli.js, built
 # from prototypes/dht/). This is a separate service from the NestJS api and from

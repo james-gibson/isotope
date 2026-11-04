@@ -1,3 +1,4 @@
+# family: deployment
 # The replay-protection service (api/src/message-bus/replay-protection-service.ts),
 # registered by the admin app (3002) and used by the UDP ingestion service.
 # Device ids are salted hashes; sequence state persists to

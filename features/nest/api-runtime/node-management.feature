@@ -1,3 +1,4 @@
+# family: deployment
 # The node-management service (api/src/node-management/), mounted by the
 # runtime app (6001). In-memory node map; messages go out over UDP via the NAT
 # traversal service. registerSync is a stub (commented body).

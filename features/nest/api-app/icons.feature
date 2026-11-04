@@ -1,3 +1,4 @@
+# family: deployment
 # The icons service (api/src/webhook/icons.controller.ts). Mounted on the
 # main app (3001); icon-change notifications also reach MCP sessions — see
 # api-app/mcp.feature.

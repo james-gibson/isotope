@@ -1,3 +1,4 @@
+# family: deployment
 # The time service (api/src/time/): TimeResolver + TimeCronService.
 # Active on the main app (3001) and the admin app (3002, resolver only).
 # Each resolver publishes a view event to PUB_SUB, but no @Subscription

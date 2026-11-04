@@ -1,3 +1,4 @@
+# family: deployment
 # The auth service (api/src/auth/): AuthService (njwt issue/verify),
 # AuthGuard (header-based, 423 on failure), AuthResolver.
 # Mounted on the main app (3001); the auth app (3003) mounts the module but

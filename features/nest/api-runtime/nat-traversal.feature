@@ -1,3 +1,4 @@
+# family: deployment
 # The NAT traversal service (api/src/nat-traversal/nat-traversal.service.ts),
 # mounted by the runtime app (6001). Binds a random UDP port, sends a
 # STUN-style probe whose answer is ignored, discovers the public IP via a

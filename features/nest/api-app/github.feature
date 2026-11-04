@@ -1,3 +1,4 @@
+# family: deployment
 # The github service (api/src/github/): GithubController + the traced service
 # that clones a private repository over SSH and reads a file from HEAD.
 # Mounted on the main app (3001). Env var NAMES only: GITHUB_SSH_KEY_PATH,

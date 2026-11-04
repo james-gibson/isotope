@@ -12,7 +12,14 @@ Feature: The scan service broadcasts captured protocol events to the global stre
   So that a scan is visible the moment it happens
 
   Background:
-    Given the feature "message-bus"
+    # Presupposition addressed by ground-truth isotope (canonical triple: signing
+    # key "seed-42", the declared public constant of ADR 0004; family "nest"; v1)
+    # rather than by magic name, per #40: the edge pins the
+    # presupposed surface, so drift in the target breaks it loudly instead of
+    # silently following a rename. Names as declared today:
+    #   nest-v1:feb740bb18661244 = message-bus — the global SSE stream this
+    #     scan broadcasts on (api/src/message-bus/stream.service.ts)
+    Given the feature "nest-v1:feb740bb18661244"
 
   Scenario: a captured scan protocol event reaches the global SSE stream
     Given the main app is running on port 3001

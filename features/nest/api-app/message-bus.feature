@@ -17,13 +17,13 @@ Feature: The message bus streams house events over SSE on a 5-second heartbeat
 
   Scenario: the ping cron feeds the SSE pong stream every 5 seconds
     Given the main app is running on port 3001
-    When a client opens GET /hookers/sse/pong
+    When a client opens GET /webhooks/sse/pong
     Then within 10 seconds the stream delivers an event
     And another event arrives within every 5 seconds after that
 
   Scenario: the global stream is served as STACK_TICK events
     Given the main app is running on port 3001
-    When a client opens GET /hookers/sse
+    When a client opens GET /webhooks/sse
     Then house events arrive typed STACK_TICK
-    # the family also serves /hookers/sse/ping (uuid events), /hookers/sse/empty
-    # (opens, emits nothing) and the AuthGuard-gated /hookers/sse/sw.
+    # the family also serves /webhooks/sse/ping (uuid events), /webhooks/sse/empty
+    # (opens, emits nothing) and the AuthGuard-gated /webhooks/sse/sw.

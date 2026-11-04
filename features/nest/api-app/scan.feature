@@ -16,6 +16,6 @@ Feature: The scan service broadcasts captured protocol events to the global stre
 
   Scenario: a captured scan protocol event reaches the global SSE stream
     Given the main app is running on port 3001
-    And a client is listening on GET /hookers/sse
+    And a client is listening on GET /webhooks/sse
     When a client runs the captureProtocolEvent mutation with id "scan-1"
     Then the global SSE stream delivers the scan event

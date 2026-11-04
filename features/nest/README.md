@@ -13,11 +13,13 @@ Directories are apps, files are services:
 - `api-auth/` — the auth app
 - `api-runtime/` — the P2P runtime app
 - `dht-tracker/` — the standalone Socket.IO tracker
-- `datawhore-cli/` — the GraphQL CLI client
+- `api-cli/` — the GraphQL CLI client
 - `ui/` — the website build and runtime
 
 Provenance: captured from a private prototype. Site-specific identity
 (hostname, domain, project name) has been scrubbed — "the prototype" in the
-headers names the source without naming the house.
+headers names the source without naming the house. The private flavour is a
+variant of the generic spec: the private token process uses a non-standard
+prefix where the generic spec says the standard "Bearer".
 
 Read with `NestStepDefinitions` (see `nest_steps.go`).

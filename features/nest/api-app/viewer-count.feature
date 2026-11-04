@@ -24,7 +24,7 @@ Feature: The viewer-count service registers viewers and issues their token pair
   Scenario: registerAuth returns the paired view and user tokens
     Given the main app is running on port 3001
     When a client runs the registerAuth mutation on /graphql
-    Then the response is "<viewToken>:<token>"
+    Then the response is "Bearer <viewToken>:Bearer <token>"
     And the view token is signed with the view signing key
     And the user token is signed with the built-in demo user's private key
 

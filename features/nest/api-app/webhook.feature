@@ -1,7 +1,7 @@
 # The webhook service (api/src/webhook/webhook.controller.ts + payload
 # converters). Mounted on the main app (3001).
 # Sources: api/src/webhook/webhook.controller.ts,
-# api/src/webhook/githubWebhook.service.ts, api/src/webhook/siteFartWebhook.service.ts,
+# api/src/webhook/githubWebhook.service.ts, api/src/webhook/siteWebhook.service.ts,
 # api/src/webhook/dto/github.markdown.dto.ts.
 # Captured 2026-11-03 from the prototype.
 

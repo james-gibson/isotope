@@ -17,7 +17,13 @@ Feature: The Pegasus registry issues and reconciles content-addressed magnet URI
 
   Background:
     Given the Prisma model "MagnetUri"
-    Given the feature "dht-tracker"
+    # Presupposition addressed by ground-truth isotope (canonical triple: signing
+    # key "seed-42", the declared public constant of ADR 0004; family "nest"; v1)
+    # rather than by magic name, per #40: the edge pins the
+    # presupposed surface, so drift in the target breaks it loudly instead of
+    # silently following a rename. Names as declared today:
+    #   nest-v1:7eaaf99ac57294ed = dht-tracker — the standalone Socket.IO tracker
+    Given the feature "nest-v1:7eaaf99ac57294ed"
 
   Scenario: posting a hash issues a magnet URI
     Given the main app is running on port 3001

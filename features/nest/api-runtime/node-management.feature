@@ -12,7 +12,14 @@ Feature: The node-management service tracks nodes and routes messages to them
   So that work can be routed to whichever node can do it
 
   Background:
-    Given the feature "nat-traversal"
+    # Presupposition addressed by ground-truth isotope (canonical triple: signing
+    # key "seed-42", the declared public constant of ADR 0004; family "nest"; v1)
+    # rather than by magic name, per #40: the edge pins the
+    # presupposed surface, so drift in the target breaks it loudly instead of
+    # silently following a rename. Names as declared today:
+    #   nest-v1:c9c11a1730f4b7c4 = nat-traversal — the UDP path messages go out
+    #     over; peer-registration presupposes the same spec
+    Given the feature "nest-v1:c9c11a1730f4b7c4"
 
   Scenario: nodes are tracked with their NAT info
     Given the runtime app is running

@@ -12,6 +12,14 @@ Feature: The /webhooks surface converts inbound webhook payloads into stored mar
   I want webhook payloads converted into readable notes
   So that advisories and diagnostics are kept with the rest of the notes
 
+  Background:
+    # Presuppositions declared 2026-11-04 (gibsunas/lemon-x-files#12); the canon
+    # drops Background. This service sits on the app scaffold (app-root), and the
+    # /webhooks/github route presupposes the github feature — github only
+    # optionally uses webhooks, so the hard edge runs this way.
+    Given the feature "app-root"
+    Given the feature "github"
+
   Scenario: a signed GitHub advisory or dependabot payload becomes a markdown note
     Given the main app is running on port 3001
     When a client posts a GitHub security-advisory payload to /webhooks/github with a valid x-hub-signature-256 signature

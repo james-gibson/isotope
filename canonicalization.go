@@ -90,8 +90,9 @@ type Scenario struct {
 
 // Feature represents a Gherkin feature.
 type Feature struct {
-	Name      string
-	Scenarios []Scenario
+	Name       string
+	Scenarios  []Scenario
+	Background []Step
 }
 
 // GherkinAST represents parsed Gherkin abstract syntax tree.
@@ -105,6 +106,7 @@ func ParseGherkin(text string) (*GherkinAST, error) {
 	ast := &GherkinAST{}
 	var currentFeature *Feature
 	var currentScenario *Scenario
+	inBackground := false
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -121,6 +123,7 @@ func ParseGherkin(text string) (*GherkinAST, error) {
 			name := extractName(line)
 			currentFeature = &Feature{Name: name}
 			currentScenario = nil
+			inBackground = false
 			continue
 		}
 
@@ -132,18 +135,31 @@ func ParseGherkin(text string) (*GherkinAST, error) {
 			}
 			name := extractName(line)
 			currentScenario = &Scenario{Name: name}
+			inBackground = false
+			continue
+		}
+
+		// Background line — its steps are read for meaning (presuppositions) but
+		// are not part of the canonical isotope (Canonicalize skips Background).
+		if strings.HasPrefix(line, "Background:") {
+			inBackground = true
+			currentScenario = nil
 			continue
 		}
 
 		// Step lines (Given/When/Then/And/But)
-		if currentScenario != nil {
+		if inBackground || currentScenario != nil {
 			keyword, text := extractStep(line)
 			if keyword != "" {
 				step := Step{
 					Keyword: normalizeKeyword(keyword),
 					Text:    text,
 				}
-				currentScenario.Steps = append(currentScenario.Steps, step)
+				if inBackground && currentFeature != nil {
+					currentFeature.Background = append(currentFeature.Background, step)
+				} else {
+					currentScenario.Steps = append(currentScenario.Steps, step)
+				}
 			}
 		}
 	}

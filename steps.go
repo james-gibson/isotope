@@ -133,8 +133,8 @@ func Define(gherkin string, defs ...StepDefinition) (*Spec, error) {
 		if spec.Feature == "" {
 			spec.Feature = f.Name
 		}
-		for _, sc := range f.Scenarios {
-			for _, st := range sc.Steps {
+		apply := func(steps []Step) {
+			for _, st := range steps {
 				for _, cd := range compiled {
 					vars, ok := cd.match(st.Text)
 					if !ok {
@@ -146,6 +146,12 @@ func Define(gherkin string, defs ...StepDefinition) (*Spec, error) {
 				}
 			}
 		}
+		for _, sc := range f.Scenarios {
+			apply(sc.Steps)
+		}
+		// Background steps are read for meaning too — a presupposition is a
+		// declaration the canon drops from the isotope but Define still sees.
+		apply(f.Background)
 	}
 	return spec, nil
 }

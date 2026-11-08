@@ -9,6 +9,7 @@ and never renumbered; a superseded ADR stays in place and points at its replacem
 | [0002](0002-tables-are-arguments.md) | a data table is the argument of a step, not a set of features | proposed |
 | [0003](0003-examples-rows-are-parts.md) | an outline is an array of cases; each row is a part | proposed |
 | [0004](0004-key-schedule-is-an-input.md) | the signing key is a declared input with a named source | proposed |
+| [0005](0005-the-port-is-a-family-value.md) | the port is a family value — announced, never written | proposed |
 
 **Status vocabulary:** *proposed* (written, not ratified) · *accepted* · *rejected* ·
 *superseded by NNNN*.
@@ -18,6 +19,11 @@ All four were originated together on 2026-10-21 from a review of
 places this canon at the centre of an attestation protocol it was never scoped for.
 The evidence in them was produced by running the canon, not read off the prose about
 it — the vectors are in each ADR so a later reader can re-derive rather than trust.
+
+0005 originated separately (2026-11-04) from the Nest decomposition capture (#38)
+and the first isotope-addressed ledger edges (#40): pinning `Background:` references
+by address made the port lines inside the captured scenarios measurable as an
+identity leak.
 
 Format: **Context** (what is, with measurements) · **Decision** · **Consequences** ·
 **Known limits** · **What would reverse this**. The limits sections are not

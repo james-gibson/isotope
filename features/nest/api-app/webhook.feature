@@ -12,6 +12,19 @@ Feature: The /webhooks surface converts inbound webhook payloads into stored mar
   I want webhook payloads converted into readable notes
   So that advisories and diagnostics are kept with the rest of the notes
 
+  Background:
+    # Presuppositions declared 2026-11-04 (gibsunas/lemon-x-files#12); the canon
+    # drops Background. Addressed by ground-truth isotope — canonical triple
+    # (signing key "seed-42", the declared public constant of ADR 0004; family
+    # "nest"; v1) — rather than by magic name, so the edge pins the presupposed
+    # surface: if the target drifts, its address changes and the ledger breaks
+    # loudly instead of silently following a rename. Names as declared today:
+    #   nest-v1:8d68b8366ff2fe51 = app-root — the app scaffold this sits on
+    #   nest-v1:97d7ee6e59f41a66 = github — /webhooks/github presupposes it;
+    #     github only optionally uses webhooks, so the hard edge runs this way.
+    Given the feature "nest-v1:8d68b8366ff2fe51"
+    Given the feature "nest-v1:97d7ee6e59f41a66"
+
   Scenario: a signed GitHub advisory or dependabot payload becomes a markdown note
     Given the main app is running on port 3001
     When a client posts a GitHub security-advisory payload to /webhooks/github with a valid x-hub-signature-256 signature

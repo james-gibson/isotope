@@ -45,7 +45,23 @@ func GenerateModel(charges []int, anchor complex128, corpus string) (*Model, err
 }
 
 // EmbeddedModel parses the model embedded into the binary at build time.
+//
+// A `-tags loreweights` build carries a corpus-derived model and prefers it, so
+// `sort` resolves the corpus's own plane names (universe ids) with no --weights
+// file. Every other build carries only the generic model, and callers that want
+// it explicitly should use EmbeddedGenericModel.
 func EmbeddedModel() (*Model, error) {
+	if len(loreWeightsJSON) > 0 {
+		return LoadWeights(loreWeightsJSON)
+	}
+	return LoadWeights(embeddedWeights)
+}
+
+// EmbeddedGenericModel parses the corpus-free model packed into every binary:
+// three structural planes at the anchor-42i hypothesis state. It is what
+// EmbeddedModel returns when the binary was built without corpus weights, and
+// the reference for "no weights".
+func EmbeddedGenericModel() (*Model, error) {
 	return LoadWeights(embeddedWeights)
 }
 
@@ -94,6 +110,7 @@ type treeDTO struct {
 
 type weightFile struct {
 	Version int           `json:"version"`
+	Names   []string      `json:"names,omitempty"`
 	Charges []int         `json:"charges"`
 	Anchor  Cplx          `json:"anchor"`
 	Encoder EncoderParams `json:"encoder"`
@@ -101,10 +118,22 @@ type weightFile struct {
 	Tree    treeDTO       `json:"tree"`
 }
 
+// planeNames returns the plane names in plane order — the semantic labels the
+// model carries (universe ids for a named corpus, else the structural
+// p<j>:q<charge> names NewSpace assigns).
+func planeNames(planes []Plane) []string {
+	out := make([]string, len(planes))
+	for j := range planes {
+		out[j] = planes[j].Name
+	}
+	return out
+}
+
 // MarshalWeights serializes the model to the canonical weights.json form.
 func (m *Model) MarshalWeights() ([]byte, error) {
 	wf := weightFile{
 		Version: 1,
+		Names:   planeNames(m.Space.Planes),
 		Charges: m.Space.Charges(),
 		Anchor:  toCplx(m.Space.Anchor),
 		Encoder: m.Params,
@@ -139,6 +168,16 @@ func LoadWeights(data []byte) (*Model, error) {
 	space, err := NewSpace(wf.Charges, fromCplx(wf.Anchor))
 	if err != nil {
 		return nil, err
+	}
+	if len(wf.Names) > 0 {
+		if len(wf.Names) != len(space.Planes) {
+			return nil, fmt.Errorf("plane: weights name %d planes but declare %d", len(wf.Names), len(space.Planes))
+		}
+		for j := range space.Planes {
+			if wf.Names[j] != "" {
+				space.Planes[j].Name = wf.Names[j]
+			}
+		}
 	}
 	tensor := &Tensor{charges: wf.Charges}
 	for _, b := range wf.Tensor {

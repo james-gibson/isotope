@@ -59,23 +59,45 @@ func ParseAnchor(s string) (complex128, error) {
 }
 
 // ParseCharges parses a comma-separated charge list such as "1,-1,1".
+//
+// A token may use the "NxM" repeat form, where N is a repetition count and M
+// the charge: "3x-1" is three planes of charge -1. Whitespace around a token
+// is ignored; an empty token is an error.
 func ParseCharges(s string) ([]int, error) {
 	if strings.TrimSpace(s) == "" {
 		return nil, fmt.Errorf("plane: empty charge list")
 	}
 	parts := strings.Split(s, ",")
 	out := make([]int, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
+	for _, tok := range parts {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
 			return nil, fmt.Errorf("plane: empty charge in list %q", s)
 		}
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return nil, fmt.Errorf("plane: invalid charge %q: %w", p, err)
+
+		// "NxM" repeats M N times. A bare token is a single plane.
+		count, chargeTok := 1, tok
+		if i := strings.IndexByte(tok, 'x'); i >= 0 {
+			countTok, rest := tok[:i], tok[i+1:]
+			n, err := strconv.Atoi(countTok)
+			if err != nil {
+				return nil, fmt.Errorf("plane: invalid repetition count %q: %w", countTok, err)
+			}
+			if n < 0 {
+				return nil, fmt.Errorf("plane: repetition count %d is negative", n)
+			}
+			count, chargeTok = n, rest
 		}
-		out = append(out, n)
+
+		charge, err := strconv.Atoi(chargeTok)
+		if err != nil {
+			return nil, fmt.Errorf("plane: invalid charge %q: %w", chargeTok, err)
+		}
+		for k := 0; k < count; k++ {
+			out = append(out, charge)
+		}
 	}
+
 	return out, nil
 }
 

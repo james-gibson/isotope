@@ -5,12 +5,14 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/james-gibson/isotope/plane"
 )
@@ -24,7 +26,7 @@ func main() {
 
 func run(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: plane <gen|node|edge|triple|sort> [flags]")
+		return fmt.Errorf("usage: plane <gen|node|edge|triple|sort|search> [flags]")
 	}
 	switch args[0] {
 	case "gen":
@@ -37,6 +39,8 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return runTriple(args[1:], stdout)
 	case "sort":
 		return runSort(args[1:], stdin, stdout)
+	case "search", "rank":
+		return runSearch(args[1:], stdout)
 	default:
 		return fmt.Errorf("unknown subcommand %q", args[0])
 	}
@@ -62,6 +66,7 @@ func addCommonFlags(fs *flag.FlagSet) (anchor, weights *string) {
 func runGen(args []string) error {
 	fs := flag.NewFlagSet("gen", flag.ContinueOnError)
 	charges := fs.String("charges", "", "comma-separated charge list, e.g. 1,-1,-1")
+	names := fs.String("names", "", "comma-separated plane names (universe ids), in plane order; default: p<j>:q<charge>")
 	corpus := fs.String("corpus", "", "path to a corpus file (optional)")
 	out := fs.String("out", "weights.json", "output weights.json path")
 	anchorStr, _ := addCommonFlags(fs)
@@ -93,6 +98,19 @@ func runGen(args []string) error {
 	model, err := plane.GenerateModel(chargeList, anchor, text)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(*names) != "" {
+		nameList := strings.Split(*names, ",")
+		if len(nameList) != len(chargeList) {
+			return fmt.Errorf("gen: %d names for %d planes", len(nameList), len(chargeList))
+		}
+		for j := range model.Space.Planes {
+			n := strings.TrimSpace(nameList[j])
+			if n == "" {
+				return fmt.Errorf("gen: empty name at index %d", j)
+			}
+			model.Space.Planes[j].Name = n
+		}
 	}
 	data, err := model.MarshalWeights()
 	if err != nil {
@@ -126,7 +144,18 @@ func withAnchor(model *plane.Model, anchor complex128) (*plane.Model, error) {
 	if model.Space.Anchor == anchor {
 		return model, nil
 	}
-	return plane.GenerateModel(model.Space.Charges(), anchor, "")
+	next, err := plane.GenerateModel(model.Space.Charges(), anchor, "")
+	if err != nil {
+		return nil, err
+	}
+	// Regenerating rebuilds the space with structural names; carry the loaded
+	// names (universe ids) across so an id selector still resolves.
+	for j := range next.Space.Planes {
+		if j < len(model.Space.Planes) {
+			next.Space.Planes[j].Name = model.Space.Planes[j].Name
+		}
+	}
+	return next, nil
 }
 
 func runEdge(args []string, stdout io.Writer) error {
@@ -231,6 +260,52 @@ func runSort(args []string, stdin io.Reader, stdout io.Writer) error {
 	return writeJSON(stdout, res)
 }
 
+func runSearch(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("search", flag.ContinueOnError)
+	endpoint := fs.String("endpoint", "", "Qdrant REST endpoint, e.g. http://localhost:6333")
+	collection := fs.String("collection", "kb", "Qdrant collection")
+	vectorName := fs.String("vector", "plane", "named Qdrant vector to query")
+	query := fs.String("query", "", "text to encode as the query vector")
+	limit := fs.Int("limit", 10, "maximum number of results")
+	apiKey := fs.String("api-key", "", "Qdrant API key")
+	anchorStr, weights := addCommonFlags(fs)
+	timeout := fs.Duration("timeout", 10*time.Second, "Qdrant request timeout")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *endpoint == "" {
+		return fmt.Errorf("search: --endpoint is required")
+	}
+	if *query == "" && fs.NArg() == 1 {
+		*query = fs.Arg(0)
+	}
+	if strings.TrimSpace(*query) == "" {
+		return fmt.Errorf("search: --query or one positional query is required")
+	}
+	if *timeout <= 0 {
+		return fmt.Errorf("search: --timeout must be positive")
+	}
+
+	model, err := loadModelForCompare(*anchorStr, *weights)
+	if err != nil {
+		return err
+	}
+	vector := flattenNode(model.Node(*query))
+	client := plane.NewQdrantClient(*endpoint)
+	client.APIKey = *apiKey
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+	results, err := client.Search(ctx, *collection, *vectorName, vector, *limit)
+	if err != nil {
+		return err
+	}
+	return writeJSON(stdout, searchOut{
+		Query:      *query,
+		VectorName: *vectorName,
+		Results:    results,
+	})
+}
+
 func loadModelForCompare(anchorStr, weights string) (*plane.Model, error) {
 	anchor, err := plane.ParseAnchor(anchorStr)
 	if err != nil {
@@ -254,6 +329,20 @@ func cplxList(zs []complex128) []plane.Cplx {
 		out[i] = plane.Cplx{Real: real(z), Imag: imag(z)}
 	}
 	return out
+}
+
+func flattenNode(node plane.Node) []float64 {
+	out := make([]float64, 0, len(node.Zeta)*2)
+	for _, z := range node.Zeta {
+		out = append(out, real(z), imag(z))
+	}
+	return out
+}
+
+type searchOut struct {
+	Query      string              `json:"query"`
+	VectorName string              `json:"vector"`
+	Results    []plane.QdrantPoint `json:"results"`
 }
 
 func writeJSON(w io.Writer, v any) error {

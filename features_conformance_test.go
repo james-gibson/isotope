@@ -137,8 +137,8 @@ func TestSpecClaimSortOrderIgnoresTensor(t *testing.T) {
 	}
 
 	var doc map[string]any
-	if err := json.Unmarshal(data, &doc); err != nil {
-		t.Fatal(err)
+	if uerr := json.Unmarshal(data, &doc); uerr != nil {
+		t.Fatal(uerr)
 	}
 	blocks, _ := doc["tensor"].([]any)
 	for _, raw := range blocks {
@@ -210,7 +210,7 @@ func TestSpecClaimAgreementDoesNotVerify_Issue20(t *testing.T) {
 
 	status := VerifyAgreement(forged, 2)
 	if !status.ConsensusFormed {
-		t.Fatal("agreement did not form over a forged signature; behaviour changed (see isotope#20)")
+		t.Fatal("agreement did not form over a forged signature; behavior changed (see isotope#20)")
 	}
 	if err := VerifyConsensusSignatures(forged, keys); err == nil {
 		t.Fatal("verification accepted a forged signature")

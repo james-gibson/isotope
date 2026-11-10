@@ -23,7 +23,7 @@ func TestWeightsRoundTripNames(t *testing.T) {
 	}
 	for _, id := range want {
 		if !strings.Contains(string(data), id) {
-			t.Fatalf("marshalled weights omit name %q:\n%s", id, data)
+			t.Fatalf("marshaled weights omit name %q:\n%s", id, data)
 		}
 	}
 
@@ -75,8 +75,8 @@ func TestLoadWeightsRejectsNameCountMismatch(t *testing.T) {
 	}
 
 	var wf map[string]any
-	if err := json.Unmarshal(data, &wf); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	if uerr := json.Unmarshal(data, &wf); uerr != nil {
+		t.Fatalf("unmarshal: %v", uerr)
 	}
 	wf["names"] = []string{"only-one"}
 	bad, err := json.Marshal(wf)
@@ -88,7 +88,7 @@ func TestLoadWeightsRejectsNameCountMismatch(t *testing.T) {
 	}
 }
 
-// stripKey removes a top-level key from a marshalled weights document.
+// stripKey removes a top-level key from a marshaled weights document.
 func stripKey(t *testing.T, data []byte, key string) []byte {
 	t.Helper()
 	var wf map[string]any

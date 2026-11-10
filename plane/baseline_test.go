@@ -16,7 +16,7 @@ import (
 )
 
 // This is the baseline gate for the plane's first embedding: the text encoder
-// over the labelled observation corpus exported by adhd's spec tooling.
+// over the labeled observation corpus exported by adhd's spec tooling.
 //
 // The corpus carries four kinds — request, path, skill, knock — each with a
 // numeric label.target. Every kind is measured separately and has its own prior

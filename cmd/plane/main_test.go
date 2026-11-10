@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -70,6 +72,24 @@ func TestCLIDisconnected(t *testing.T) {
 	err := run([]string{"gen", "--charges", "0,1,1,2", "--out", path}, nil, &bytes.Buffer{})
 	if err == nil {
 		t.Fatal("expected gen to reject a disconnected charge graph")
+	}
+}
+
+func TestCLISearchQueriesPlaneVector(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/collections/kb/points/search" {
+			t.Fatalf("path = %q, want named-vector search path", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"result":[{"id":"doc-1","score":0.9}]}`))
+	}))
+	defer server.Close()
+
+	out := runCapture(t, []string{
+		"search", "--endpoint", server.URL, "--anchor", "42i", "--query", "hello",
+	}, "")
+	if !strings.Contains(out, `"vector": "plane"`) || !strings.Contains(out, `"doc-1"`) {
+		t.Fatalf("search output = %s", out)
 	}
 }
 

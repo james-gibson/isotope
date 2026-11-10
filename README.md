@@ -271,6 +271,8 @@ plane node  <string>            # → {zeta:[...], key:...}
 plane edge  <a> <b>             # → {blocks:[...], score, phase}
 plane triple <a> <b> <c>        # → {key, holonomy, frustrated, quarantined}
 plane sort                      # stdin, one selector per line (index or plane name); --anchor required
+plane search --endpoint http://localhost:6333 --weights .plane-weights.json --query "$QUERY"
+                                # → ranks Qdrant's named `plane` vector
 ```
 
 `gen` writes `weights.json`; the default is embedded into the binary via
@@ -279,6 +281,11 @@ files. Exactly one anchor is fixed per run — `42` (real axis, proven consensus
 or `42i` (imaginary axis, working hypothesis) — and anchors are never mixed
 within a sort. A disconnected charge graph returns an error rather than a
 default phase of 0.
+
+`search`/`rank` queries Qdrant's named `plane` vector with the model loaded from
+`--weights` (or the embedded model). This is distinct from `qdrant-find`, which
+queries the fastembed corpus vector; the query weights and plane dimension must
+match those used when indexing the collection.
 
 Plane selectors (`edge`, `triple`, `sort`) are resolved by 0-based index or by
 exact plane name. `gen --names` — or a `names` array written by a corpus deriver —
